@@ -1,0 +1,174 @@
+---
+title: "How CRM Correlation Works"
+sidebarTitle: "How CRM Correlation Works"
+description: "The architecture behind external_refs — how RecordEngine links documents to CRM records without a native integration."
+---
+
+RecordEngine's CRM correlation system lets you permanently link any document to any record in any external system — a Salesforce Opportunity, a HubSpot Deal, a Microsoft Dynamics Account, or any other object with a unique ID. This page explains how the system works and why it's designed the way it is.
+
+---
+
+## The Core Idea
+
+When a document is processed in RecordEngine, it exists in isolation — it has a contact, a folder, extracted fields, and a status. But in most organisations, that document also belongs to something in another system: a deal in the CRM, a project in the ERP, a case in the helpdesk.
+
+CRM correlation solves this by attaching a **reference object** to the document that says: *"This document is also associated with record X in system Y, and you can find it at URL Z."*
+
+That reference travels with the document everywhere — it's stored in the database, returned by the API, and included in every outbound webhook payload.
+
+---
+
+## The `external_refs` Field
+
+Every document in RecordEngine has an `external_refs` field — a JSON object that can hold references to records in any number of external systems simultaneously.
+
+```json
+{
+  "external_refs": {
+    "salesforce": {
+      "record_id": "001Qy00000BnXt2IAF",
+      "record_type": "Opportunity",
+      "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+    },
+    "hubspot": {
+      "record_id": "12345678901",
+      "record_type": "Deal",
+      "record_url": "https://app.hubspot.com/contacts/YOUR_PORTAL/deal/12345678901"
+    }
+  }
+}
+```
+
+The top-level keys (`salesforce`, `hubspot`) are arbitrary identifiers — you choose them. RecordEngine doesn't validate or interpret them; it stores and returns them exactly as provided.
+
+---
+
+## Three Patterns
+
+There are three common ways CRM correlation gets used in practice:
+
+### Pattern 1 — CRM Pushes Documents to RecordEngine
+
+Your CRM or automation platform detects a trigger (deal stage change, new contact, incoming email) and uploads a document to RecordEngine via the API, passing the CRM record ID in `external_refs` at upload time.
+
+```
+CRM event triggers
+    → Automation uploads file to RecordEngine API
+    → Passes external_refs with CRM record ID
+    → Document is processed
+    → Webhook fires with external_refs included
+    → Automation updates CRM record with extracted data
+```
+
+This is the most common pattern for Salesforce and HubSpot.
+
+### Pattern 2 — RecordEngine Pushes Data to CRM
+
+Documents arrive in RecordEngine directly (via upload, email, or hot folder). When they're exported, the webhook payload — including any `external_refs` set manually — is received by an automation that updates the appropriate CRM record.
+
+```
+Document uploaded to RecordEngine
+    → Reviewer adds external_refs via API
+    → Document approved and exported
+    → Webhook fires
+    → Automation reads external_refs.salesforce.record_id
+    → Updates Salesforce record with extracted fields
+```
+
+### Pattern 3 — Bidirectional Sync
+
+Both systems push and pull. RecordEngine processes incoming documents and pushes extracted data to the CRM. The CRM triggers document uploads and stores the RecordEngine `doc_url` deep-link for one-click navigation back to the document.
+
+```
+CRM ←→ RecordEngine (bidirectional)
+```
+
+This is the most powerful pattern and is documented in detail in the [Salesforce](/integrations/salesforce) and [HubSpot](/integrations/hubspot) integration guides.
+
+---
+
+## Setting `external_refs` at Upload
+
+Pass `external_refs` as a JSON string in the upload API request:
+
+```bash
+curl -X POST https://YOUR-INSTANCE/api/documents/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@contract.pdf" \
+  -F "contact_id=5" \
+  -F "folder_id=12" \
+  -F 'external_refs={
+    "salesforce": {
+      "record_id": "001Qy00000BnXt2IAF",
+      "record_type": "Opportunity",
+      "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+    }
+  }'
+```
+
+---
+
+## Updating `external_refs` After Upload
+
+If a document was uploaded without `external_refs`, you can add them later:
+
+```bash
+curl -X PATCH https://YOUR-INSTANCE/api/documents/847 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_refs": {
+      "salesforce": {
+        "record_id": "001Qy00000BnXt2IAF",
+        "record_type": "Opportunity",
+        "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+      }
+    }
+  }'
+```
+
+---
+
+## `external_refs` in the Webhook Payload
+
+Every outbound webhook payload includes the full `external_refs` object. Your automation uses it to find the right record in the destination system:
+
+```json
+{
+  "id": 847,
+  "extracted_fields": { ... },
+  "external_refs": {
+    "salesforce": {
+      "record_id": "001Qy00000BnXt2IAF",
+      "record_type": "Opportunity",
+      "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+    }
+  },
+  "doc_url": "https://a9f3d7e2.recordengine.ai/api/document/847/view"
+}
+```
+
+Your automation reads `external_refs.salesforce.record_id` to know which Salesforce record to update.
+
+---
+
+## The `doc_url` Deep-Link
+
+Every webhook payload also includes `doc_url` — a direct URL that opens the document in the RecordEngine UI. This is intended to be stored on the CRM record so your team can jump from a deal or contact straight to the full document, extracted fields, and approval status.
+
+In Salesforce, store it in a custom URL field on the Opportunity. In HubSpot, store it in a custom Deal property. Your team then has one-click navigation between the CRM and RecordEngine without searching.
+
+See [Deep-Links](/api-reference/deep-links) for how the URL pattern works.
+
+---
+
+## Why Not a Native Integration?
+
+RecordEngine deliberately uses a generic `external_refs` field rather than native per-system integrations. The reasons:
+
+1. **Works with any system** — any CRM, ERP, or custom application with a unique record ID can be linked, not just the ones with built-in connectors
+2. **No credentials stored in RecordEngine** — the CRM credentials live in your automation platform, not in RecordEngine, which simplifies security and compliance
+3. **Logic lives in your automation** — field mapping, deduplication, and error handling are configured in your automation platform where they're visible and auditable
+4. **Model-agnostic** — when RecordEngine's AI model changes or upgrades, the integration doesn't break because it doesn't depend on model-specific outputs
+
+For step-by-step integration guides see [Salesforce](/integrations/salesforce), [HubSpot](/integrations/hubspot), [QuickBooks](/integrations/quickbooks), and [Xero](/integrations/xero).

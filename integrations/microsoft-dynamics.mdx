@@ -1,0 +1,158 @@
+---
+title: "Microsoft Dynamics 365 Integration"
+sidebarTitle: "Microsoft Dynamics 365"
+description: "Link RecordEngine documents to Dynamics 365 records and push extracted data to Accounts, Opportunities, and Invoices."
+---
+
+The Microsoft Dynamics 365 integration connects RecordEngine's document pipeline to your Dynamics CRM and ERP. Documents processed in RecordEngine can be linked to Dynamics Accounts, Opportunities, and Invoices — and extracted data pushed back automatically when a document is approved and exported.
+
+---
+
+## What the Integration Does
+
+<CardGroup cols={2}>
+  <Card title="Link documents to Dynamics records" icon="link">
+    Pass a Dynamics Account, Opportunity, or Invoice ID at upload time. The document is permanently associated with that record.
+  </Card>
+  <Card title="Push extracted data to Dynamics" icon="arrow-right">
+    When a document is exported, an automation scenario reads the extracted fields and updates the corresponding Dynamics record.
+  </Card>
+  <Card title="Create Dynamics activities" icon="calendar">
+    Post the AI summary as a Note or Task on the associated Dynamics record — giving your team instant visibility into document content.
+  </Card>
+  <Card title="Deep-link back to the document" icon="arrow-up-right-from-square">
+    Store the RecordEngine document URL on the Dynamics record so your team can jump directly to the full document and extraction results.
+  </Card>
+</CardGroup>
+
+---
+
+## Step 1 — Upload Documents with Dynamics References
+
+When uploading a document via the API, include the Dynamics record details in `external_refs`:
+
+```bash
+curl -X POST https://YOUR-INSTANCE/api/documents/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@invoice.pdf" \
+  -F "contact_id=5" \
+  -F "folder_id=12" \
+  -F 'external_refs={
+    "dynamics": {
+      "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "record_type": "opportunity",
+      "record_url": "https://yourorg.crm.dynamics.com/main.aspx?etn=opportunity&id=a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    }
+  }'
+```
+
+Supported `record_type` values (use Dynamics entity logical names): `account`, `opportunity`, `invoice`, `contact`, `lead`
+
+---
+
+## Step 2 — Connect Dynamics 365 in Your Automation Platform
+
+Connect your Dynamics 365 environment using the native Microsoft Dynamics connector. You'll need:
+
+- Dynamics 365 environment URL (e.g. `https://yourorg.crm.dynamics.com`)
+- User account with API access (System Customizer or higher role)
+- OAuth connection authorised through your automation platform
+
+---
+
+## Step 3 — Build the Document → Dynamics Scenario
+
+**Trigger:** RecordEngine Document Webhook (Custom Webhook)
+
+**Action 1:** Parse the incoming webhook payload
+
+**Action 2:** Microsoft Dynamics 365 — Update Record
+- Entity: use `external_refs.dynamics.record_type` (e.g. `opportunity`)
+- Record ID: use `external_refs.dynamics.record_id`
+- Map extracted fields to Dynamics field names (see field mapping table below)
+
+**Action 3 (optional):** Microsoft Dynamics 365 — Create Note
+- Set the Note description to `ai_summary` from the payload
+- Relate the Note to the record using the same record ID and type
+
+<img
+  src="/images/integrations/automation-scenario-dynamics.png"
+  alt="Automation scenario — RecordEngine webhook to Dynamics 365"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario: Webhook trigger → Dynamics Update Record → Dynamics Create Note */}
+
+---
+
+## Field Mapping Reference
+
+| RecordEngine field | Dynamics field | Entity |
+|-------------------|---------------|--------|
+| `total_amount` | `totalamount` | opportunity, invoice |
+| `invoice_date` | `createdon` or custom | invoice |
+| `due_date` | Custom field | invoice |
+| `invoice_number` | `invoicenumber` | invoice |
+| `vendor` | `name` | account |
+| `ai_summary` | Note `notetext` | annotation (related) |
+| `doc_url` | Custom URL field | any |
+| `confidence_score` | Custom field | any |
+
+<Info>
+  Dynamics 365 uses **logical field names** (lowercase, no spaces) in its API — not the display names shown in the UI. To find the logical name for a field, open the field in the Dynamics customisation area and look for the **Name** property.
+</Info>
+
+---
+
+## Step 4 — Store the Document Deep-Link
+
+RecordEngine includes `doc_url` in every webhook payload. Store this on the Dynamics record for one-click navigation from CRM to document.
+
+To add a URL field to a Dynamics entity:
+
+1. Go to **Settings → Customizations → Customize the System**
+2. Open the entity (e.g. Opportunity)
+3. Add a new field: Data Type = **URL**, Display Name = *RecordEngine Document*, Name = `new_recordengineurl`
+4. Publish the customisation
+
+In your automation scenario, map `doc_url` from the webhook payload to this new field.
+
+---
+
+## Scenario B — Dynamics Event → Upload to RecordEngine
+
+Trigger document uploads from Dynamics automatically — for example, when an Opportunity reaches "Proposal" stage, upload a document template for processing.
+
+**Trigger:** Microsoft Dynamics 365 — Watch Record Changes (Opportunity stage = "Proposal")
+
+**Action:** HTTP — POST to RecordEngine API
+- URL: `https://YOUR-INSTANCE/api/documents/upload`
+- Headers: `Authorization: Bearer YOUR_TOKEN`
+- Body: multipart/form-data with file, contact_id, folder_id, and `external_refs` containing the Dynamics record ID
+
+---
+
+## Dynamics 365 Finance & Operations (D365 F&O)
+
+For organisations using **Dynamics 365 Finance & Operations** (the ERP module, not just CRM), the integration approach is the same but targets different entities:
+
+| Document type | D365 F&O entity |
+|--------------|----------------|
+| Vendor invoices | `VendInvoiceJournal` |
+| Purchase orders | `PurchaseOrderHeader` |
+| Customer invoices | `CustInvoiceJour` |
+
+Use the D365 F&O REST API (OData endpoint) in your automation platform instead of the standard Dynamics CRM connector.
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Record not found | Confirm `external_refs.dynamics.record_id` is a valid GUID for that entity — copy it directly from the Dynamics URL |
+| Field not updating | Verify you're using the logical field name, not the display name |
+| Note not appearing | Notes (Annotations) in Dynamics require a related entity reference — confirm `objectid` and `objecttypecode` are set correctly in the automation |
+| OAuth token expired | Dynamics 365 OAuth tokens expire — reconnect the Dynamics connection in your automation platform |
+| Permission denied | The connected Dynamics user account needs at least read/write access to the entities being updated |
+
+For more help see [Integration Troubleshooting](/troubleshooting/integration-issues).

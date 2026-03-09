@@ -1,0 +1,165 @@
+---
+title: "WeCom (WeChat Work) Integration"
+sidebarTitle: "WeCom"
+description: "Send RecordEngine document notifications to WeCom — and submit documents for processing directly from WeCom chats."
+---
+
+**WeCom** (企业微信, also known as WeChat Work) is the dominant enterprise messaging platform in China. The RecordEngine WeCom integration sends document processing notifications to your WeCom channels automatically, and enables document submission directly from WeCom — without opening the RecordEngine web UI.
+
+---
+
+## What the Integration Does
+
+<CardGroup cols={2}>
+  <Card title="Processing notifications" icon="bell">
+    When a document is processed and ready for review, a WeCom message is sent to the responsible team member or group — with the document summary, confidence score, and a direct link to review it.
+  </Card>
+  <Card title="Exception alerts" icon="triangle-exclamation">
+    When a document is flagged as an Exception (low confidence, missing fields, rule trigger), an alert is sent immediately so nothing falls through the cracks.
+  </Card>
+  <Card title="Approval confirmations" icon="circle-check">
+    When a document is approved and exported, a confirmation message notifies the relevant contact — useful for internal sign-off workflows.
+  </Card>
+  <Card title="Document submission via chat" icon="paper-plane">
+    Team members can send document files directly in a WeCom chat. The integration forwards them to RecordEngine for processing automatically — no browser login needed.
+  </Card>
+</CardGroup>
+
+---
+
+## Part A — Outbound Notifications (WeCom Webhook)
+
+This is the simpler of the two integration paths. RecordEngine fires an outbound webhook when documents reach key statuses; an automation platform receives the webhook and forwards a formatted message to WeCom.
+
+### Step 1 — Create a WeCom Group Bot
+
+1. Open the WeCom group chat where you want notifications delivered
+2. Click the group name → **Group Bots** → **Add Bot**
+3. Give the bot a name (e.g. *RecordEngine Notifications*)
+4. Copy the **Webhook URL** — it looks like:
+   ```
+   https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY
+   ```
+
+### Step 2 — Build the Notification Scenario
+
+**Trigger:** RecordEngine Document Webhook (Custom Webhook in your automation platform)
+
+**Action:** HTTP — POST to the WeCom Group Bot Webhook URL
+
+**Message body:**
+
+```json
+{
+  "msgtype": "markdown",
+  "markdown": {
+    "content": "**📄 New Document Ready for Review**\n\n**File:** {{filename}}\n**Contact:** {{contact_name}}\n**Confidence:** {{confidence_score}}% ({{confidence_label}})\n**Summary:** {{ai_summary}}\n\n[Open in RecordEngine]({{doc_url}})"
+  }
+}
+```
+
+Replace `{{filename}}`, `{{contact_name}}`, etc. with the actual field mappings from the webhook payload in your automation platform.
+
+<img
+  src="/images/integrations/wecom-notification-example.png"
+  alt="WeCom notification message showing document summary and review link"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: WeCom mobile app showing a RecordEngine bot message with document name, confidence score, summary, and clickable link */}
+
+### Notification Triggers to Configure
+
+Set up separate scenarios (or conditions within one scenario) for each notification type:
+
+| Status reached | Notification content |
+|----------------|---------------------|
+| `Needs Review` | Document ready — summary + confidence + review link |
+| `Exception` | ⚠️ Alert — document flagged, confidence score, reason |
+| `Approved` | ✅ Approved — document name + approver |
+| `Export` | 📤 Exported to accounting system |
+
+---
+
+## Part B — Document Submission from WeCom
+
+This more advanced path lets team members submit documents for processing by sending them in a WeCom chat. The document is automatically forwarded to RecordEngine without requiring anyone to log into the web UI.
+
+### How It Works
+
+```
+Team member sends file in WeCom chat
+    → WeCom forwards to your automation platform (via WeCom App webhook)
+    → Automation downloads the file
+    → Automation uploads file to RecordEngine API
+    → RecordEngine processes the document
+    → Notification sent back to WeCom when ready
+```
+
+### Requirements
+
+- A **WeCom Self-Built Application** (自建应用) with message receive permissions
+- WeCom API credentials: `corpid`, `corpsecret`, `agentid`
+- Your automation platform configured to receive WeCom message webhooks
+
+### Step 1 — Create a WeCom Self-Built Application
+
+1. Log into the WeCom Admin Console (`work.weixin.qq.com`)
+2. Go to **Applications → Self-Built** → **Create Application**
+3. Set the application name (e.g. *RecordEngine*)
+4. Under **Receive Messages**, enable message receiving and enter your automation platform's webhook URL
+5. Note your `AgentId`, `CorpId`, and `Secret`
+
+### Step 2 — Build the Submission Scenario
+
+**Trigger:** Webhooks — receive the WeCom message event (your automation platform's incoming webhook URL was set in the WeCom app above)
+
+**Condition:** Check that the message type is `file` (not a text message)
+
+**Action 1:** WeCom API — Download the file using the `media_id` from the message event
+
+**Action 2:** RecordEngine API — Upload the file
+```
+POST /api/documents/upload
+file: [downloaded file]
+contact_id: [mapped from sender's WeCom user ID or hardcoded]
+folder_id: [target folder ID]
+```
+
+**Action 3:** WeCom API — Send a reply message to the sender confirming receipt:
+```
+"✅ Your document has been received and is being processed. I'll notify you when it's ready."
+```
+
+**Action 4:** (After processing — triggered by the Document Webhook) — WeCom API — Send the results back to the sender with the confidence score and a review link.
+
+---
+
+## Mapping WeCom Users to RecordEngine Contacts
+
+For the submission flow to automatically assign documents to the right contact, you need a way to map from a WeCom user ID to a RecordEngine contact ID.
+
+**Simple approach:** Use a fixed contact/folder for all WeCom submissions. A reviewer then manually reassigns documents after processing.
+
+**Advanced approach:** Maintain a lookup table in your automation platform's data store mapping WeCom user IDs to RecordEngine contact IDs. When a message arrives, look up the sender's WeCom ID and use the corresponding `contact_id` in the upload request.
+
+---
+
+## WeCom vs. Standard WeChat
+
+<Warning>
+  This integration is for **WeCom (企业微信)** — the enterprise version. It does not work with standard WeChat (微信). Standard WeChat does not provide API access for custom enterprise integrations.
+</Warning>
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Bot messages not appearing | Confirm the Group Bot webhook URL is correct and the bot is still active in the group |
+| WeCom app not receiving messages | Verify the message receive URL is set correctly in the WeCom Admin Console and is publicly accessible |
+| File download failing | The `media_id` from WeCom expires after 5 days — download the file immediately when the message event arrives |
+| RecordEngine upload failing | Check the API token and confirm `contact_id` and `folder_id` exist in RecordEngine |
+| `errcode: 40014` from WeCom API | The `access_token` has expired — your automation needs to refresh it before making WeCom API calls |
+
+For more help see [Integration Troubleshooting](/troubleshooting/integration-issues).

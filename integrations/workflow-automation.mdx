@@ -1,0 +1,206 @@
+---
+title: "Workflow Automation"
+sidebarTitle: "Workflow Automation"
+description: "How to connect RecordEngine to any external system using an automation platform — the patterns, principles, and building blocks."
+---
+
+RecordEngine's webhook and API system is designed to work with any automation platform. This guide covers the core patterns and building blocks that apply regardless of which automation tool you use — so you can build reliable integrations without starting from scratch every time.
+
+---
+
+## The Two Directions
+
+Every RecordEngine integration involves data flowing in one or both directions:
+
+| Direction | Mechanism | Use case |
+|-----------|-----------|---------|
+| **Into RecordEngine** | REST API (`POST /api/documents/upload`) | Upload documents from CRM attachments, email, or other systems |
+| **Out of RecordEngine** | Outbound webhook (`POST` to your URL) | Push extracted data to accounting, CRM, or ERP when a document is exported |
+
+Most real-world integrations use both directions — documents arrive from one system, get processed, and extracted data flows to another.
+
+---
+
+## The Standard Outbound Pattern
+
+This pattern handles the most common use case: something happens in RecordEngine → data goes to an external system.
+
+```
+RecordEngine → Webhook → Automation Platform → External System
+```
+
+**Step 1:** Configure an incoming webhook URL in your automation platform. Copy the URL.
+
+**Step 2:** Paste the URL into **RecordEngine Settings → Document Webhook URL**.
+
+**Step 3:** In your automation platform, build:
+- **Trigger:** Incoming webhook
+- **Action:** Whatever the external system needs (create a Bill, update a CRM record, send a notification)
+
+**Step 4:** Test by exporting a document in RecordEngine. Confirm the webhook fires and the external system is updated.
+
+That's the entire pattern. Every outbound integration — QuickBooks, Xero, Salesforce, HubSpot, WeCom, custom ERP — is a variation of these four steps.
+
+---
+
+## The Standard Inbound Pattern
+
+This pattern handles uploading documents into RecordEngine from an external trigger.
+
+```
+External System → Automation Platform → RecordEngine API
+```
+
+**Step 1:** Set up a trigger in your automation platform. This could be:
+- A new email with an attachment
+- A CRM stage change
+- A file appearing in a shared folder
+- A scheduled time (e.g. every morning at 8am)
+
+**Step 2:** Add an HTTP action that POSTs to the RecordEngine upload endpoint:
+
+```
+POST https://YOUR-INSTANCE/api/documents/upload
+Authorization: Bearer YOUR_TOKEN
+Content-Type: multipart/form-data
+
+file: [the file]
+contact_id: [target contact]
+folder_id: [target folder]
+profile_id: [extraction profile to use]
+external_refs: {"source": {"record_id": "...", "record_type": "..."}}
+```
+
+**Step 3:** Optionally save the returned `document_id` so you can query the document's status or results later.
+
+---
+
+## Handling the Async Gap
+
+Document processing in RecordEngine is asynchronous — you upload a file and it's processed in the background. There's a gap between when you upload and when the extracted data is ready.
+
+There are two ways to handle this:
+
+### Option A — Webhook Callback (Recommended)
+
+Don't poll for results. Instead, let RecordEngine tell you when it's done:
+
+1. Upload the document with `external_refs` containing a reference ID from your system
+2. When the document is exported (status = Export), the outbound webhook fires with the full payload including `external_refs`
+3. Your automation uses `external_refs` to match the webhook payload back to the originating record in your system
+
+This is the cleanest pattern — no polling, no delays, no wasted API calls.
+
+### Option B — Status Polling
+
+If you need the results synchronously (e.g. a user is waiting on a web page):
+
+```python
+import time
+import requests
+
+def wait_for_processing(token, document_id, timeout=300):
+    headers = {"Authorization": f"Bearer {token}"}
+    deadline = time.time() + timeout
+    
+    while time.time() < deadline:
+        response = requests.get(
+            f"https://YOUR-INSTANCE/api/documents/{document_id}",
+            headers=headers
+        )
+        doc = response.json()
+        
+        if doc["status"] == "Needs Review":
+            return doc  # Processing complete
+        
+        if doc["status"] == "Exception":
+            raise Exception(f"Processing failed: {doc['confidence_reasoning']}")
+        
+        time.sleep(10)  # Check every 10 seconds
+    
+    raise TimeoutError("Document processing timed out")
+```
+
+---
+
+## Key Building Blocks
+
+### Parsing the Webhook Payload
+
+The webhook payload is a JSON object. The most commonly used fields:
+
+```javascript
+// In your automation platform, reference these paths:
+payload.id                              // Document ID
+payload.filename                        // File name
+payload.contact_name                    // Contact
+payload.confidence_score                // 0–100
+payload.confidence_label                // High / Good / Low / Poor
+payload.ai_summary                      // Plain-language summary
+payload.extracted_fields.vendor         // Specific extracted field
+payload.extracted_fields.total_amount   // Another extracted field
+payload.line_items[0].description       // First line item
+payload.external_refs.salesforce.record_id  // CRM reference
+payload.doc_url                         // Deep-link URL
+```
+
+### Iterating Over Line Items
+
+Line items come as an array. In your automation platform, use an iterator/loop to process each one:
+
+```json
+[
+  { "description": "Consulting", "quantity": 10, "unit_price": 500, "amount": 5000 },
+  { "description": "Expenses",   "quantity": 1,  "unit_price": 320, "amount": 320  }
+]
+```
+
+Most automation platforms have a built-in "For each" or "Iterator" module — feed it `line_items` from the payload.
+
+### Conditional Logic
+
+Add conditions to your scenario to handle different document types differently:
+
+| Condition | Action |
+|-----------|--------|
+| `confidence_score < 60` | Send a WeCom alert instead of creating the accounting record |
+| `extracted_fields.currency == "CNY"` | Route to the China accounting system |
+| `contact_name == "Trusted Vendor"` | Skip manual approval, create Bill directly |
+| `line_items` array is empty | Create a single-line Bill using `total_amount` |
+
+### Error Handling
+
+Always add an error handler to your automation scenario. If the external system is down or returns an error, you want to:
+
+1. Log the failure (save to a data store or spreadsheet)
+2. Send an alert (email or WeCom message)
+3. Optionally retry after a delay
+
+Without error handling, failed webhook deliveries disappear silently.
+
+---
+
+## Testing Your Integration
+
+<Steps>
+  <Step title="Use webhook.site for initial testing">
+    Before building your full scenario, point the RecordEngine webhook at [webhook.site](https://webhook.site). Export a document and inspect the exact payload shape — field names, data types, nesting. This prevents surprises later.
+  </Step>
+  <Step title="Test with a real document">
+    Use a real invoice or document that represents your most common case. Verify every field maps correctly to the destination system.
+  </Step>
+  <Step title="Test edge cases">
+    Test with: a document with no line items, a document with a missing field, a document in Chinese, a very low confidence document. Confirm your scenario handles each gracefully.
+  </Step>
+  <Step title="Monitor the first week">
+    After going live, check the Audit Log daily for webhook failures. Your automation platform's execution history shows every run — review it for errors during the first week.
+  </Step>
+</Steps>
+
+---
+
+## Recommended Automation Platforms
+
+Any automation platform that supports webhooks and HTTP requests works with RecordEngine. Platforms with native connectors for common destinations (Xero, QuickBooks, Salesforce, HubSpot) reduce the amount of custom HTTP configuration needed.
+
+For WeCom integration specifically, confirm your chosen platform supports outbound HTTP requests to the WeCom API (some platforms block certain domains from China).
