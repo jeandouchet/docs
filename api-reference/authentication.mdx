@@ -1,0 +1,158 @@
+---
+title: "Authentication"
+sidebarTitle: "Authentication"
+description: "How to authenticate API requests and secure your webhook endpoints."
+---
+
+RecordEngine uses **Bearer token authentication** for all REST API requests. Every call must include your API token in the request header — unauthenticated requests are rejected with a `401 Unauthorized` response.
+
+---
+
+## Getting Your API Token
+
+1. Log into RecordEngine as an **Admin**
+2. Go to **Settings → API**
+3. Copy the token displayed there
+
+Your token looks like a long random string:
+
+```
+re_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+```
+
+<Warning>
+  Treat your API token like a password. Anyone with this token can read all documents, upload files, and modify data in your RecordEngine instance. Do not share it publicly or commit it to a code repository.
+</Warning>
+
+---
+
+## Including the Token in Requests
+
+Add the token to the `Authorization` header of every API request:
+
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+### Examples
+
+<CodeGroup>
+```bash curl
+curl -X GET https://YOUR-INSTANCE/api/documents \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+```python Python
+import requests
+
+headers = {
+    "Authorization": "Bearer YOUR_TOKEN_HERE"
+}
+
+response = requests.get(
+    "https://YOUR-INSTANCE/api/documents",
+    headers=headers
+)
+
+print(response.json())
+```
+
+```javascript JavaScript
+const response = await fetch("https://YOUR-INSTANCE/api/documents", {
+  headers: {
+    "Authorization": "Bearer YOUR_TOKEN_HERE"
+  }
+});
+
+const data = await response.json();
+console.log(data);
+```
+</CodeGroup>
+
+---
+
+## Using the Token in Swagger UI
+
+To authenticate in the Swagger UI at `/api/docs`:
+
+1. Click the **Authorize** button (🔒) at the top right of the Swagger page
+2. In the dialog, enter: `Bearer YOUR_TOKEN_HERE`
+3. Click **Authorize**
+
+All subsequent requests made from the Swagger UI will include your token automatically.
+
+---
+
+## Regenerating Your Token
+
+If you suspect your token has been compromised, regenerate it immediately:
+
+1. Go to **Settings → API**
+2. Click **Regenerate Token**
+3. A new token is issued instantly — copy and save it
+4. The old token is **immediately invalidated**
+
+<Warning>
+  After regenerating, update every integration, automation scenario, and script that uses your API token before they will work again.
+</Warning>
+
+---
+
+## Webhook Authentication
+
+When RecordEngine sends an outbound webhook POST to your URL, it includes the same Bearer token in the request header:
+
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+Your webhook receiver should validate this header to confirm the request is genuine and originated from your RecordEngine instance — not from an external source.
+
+### Verifying a Webhook in Python
+
+```python
+from fastapi import Request, HTTPException
+
+EXPECTED_TOKEN = "YOUR_TOKEN_HERE"
+
+async def receive_webhook(request: Request):
+    auth_header = request.headers.get("Authorization", "")
+    
+    if auth_header != f"Bearer {EXPECTED_TOKEN}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    payload = await request.json()
+    # process payload...
+```
+
+### Verifying a Webhook in Node.js
+
+```javascript
+app.post("/webhook", (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  const expectedToken = `Bearer ${process.env.RE_TOKEN}`;
+  
+  if (authHeader !== expectedToken) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  
+  const payload = req.body;
+  // process payload...
+  
+  res.status(200).json({ received: true });
+});
+```
+
+<Tip>
+  Store your token in an environment variable (e.g. `RE_TOKEN`) rather than hardcoding it in your source code. This makes it easy to rotate the token without a code change.
+</Tip>
+
+---
+
+## Authentication Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `401 Unauthorized` | No `Authorization` header, or the token is missing | Add `Authorization: Bearer YOUR_TOKEN` to your request headers |
+| `401 Unauthorized` | Token is incorrect or has been regenerated | Copy the current token from Settings → API |
+| `403 Forbidden` | Token is valid but the action requires Admin access | Use an Admin account's token, or grant Admin role to the current user |

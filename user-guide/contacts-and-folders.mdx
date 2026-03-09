@@ -1,0 +1,202 @@
+---
+title: "Contacts & Folders"
+sidebarTitle: "Contacts & Folders"
+description: "How to organise your documents using contacts and folders — the core structure of RecordEngine."
+---
+
+Everything in RecordEngine is organised around **contacts** and **folders**. A contact represents any entity whose documents you're managing — a client, vendor, partner, or internal department. Folders live inside contacts and hold the actual documents.
+
+<img
+  src="/images/user-guide/contacts-list.png"
+  alt="RecordEngine contacts list"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Contacts list page showing several contacts with their type badges (Client, Vendor, etc.) and document counts */}
+
+---
+
+## Contacts
+
+### Creating a Contact
+
+1. Click **Contacts** in the left sidebar
+2. Click **+ New Contact**
+3. Fill in the details:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | The contact's display name — company name or person's name |
+| **Type** | Client, Vendor, Partner, Internal, or Other |
+| **Email** | Primary contact email — stored for reference and email follow-up |
+| **Phone** | Optional |
+| **Company** | If the contact is a person, link them to a company |
+| **Notes** | Free-text notes about this contact |
+
+4. Click **Save**
+
+Two folders are created automatically: **Documents** and **Review**.
+
+<img
+  src="/images/user-guide/create-contact-form.png"
+  alt="New contact form"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: New Contact form filled in with example data */}
+
+---
+
+### Contact Hierarchy (Parent / Child)
+
+Contacts can be nested — for example, a parent company with multiple subsidiaries, or an individual person linked to their employer.
+
+To create a child contact:
+1. Open the parent contact
+2. Click **+ Add Sub-Contact**
+3. Fill in the sub-contact details and save
+
+The parent-child relationship is visible in the contact list and helps keep related entities grouped together.
+
+---
+
+### Setting a Default Extraction Profile
+
+Every contact can have a **default extraction profile** — the profile used automatically for all documents uploaded to that contact, without needing to select it manually on each upload.
+
+1. Open the contact
+2. Click **Edit**
+3. Set **Default Extraction Profile** to the appropriate profile (e.g. *Standard Invoice* for a vendor, *Meeting Notes* for an internal team)
+4. Save
+
+This is especially useful when combined with **Email Intake** — documents that arrive by email are automatically processed with the right profile for that contact.
+
+---
+
+### Per-Contact AI Chat Instructions
+
+You can give the AI standing instructions for each contact that apply every time you use AI Chat in that contact's folders:
+
+1. Open the contact → **Edit**
+2. Fill in **AI Chat Instructions** — for example:
+   - *"This vendor always invoices in USD. Treat all amounts as USD if currency is not stated."*
+   - *"Respond in Chinese. This client's documents are all in Simplified Chinese."*
+   - *"Focus on action items and deadlines when summarising meeting notes."*
+3. Save
+
+---
+
+### Contact Statistics
+
+The contact detail view shows live statistics: total documents, documents by status, and total invoice value (if using an invoice extraction profile). These update automatically as documents are processed.
+
+---
+
+### Editing and Deleting Contacts
+
+- **Edit:** Open the contact → click **Edit** → make changes → Save
+- **Delete:** Open the contact → click **Delete**. Contacts with documents cannot be deleted until the documents are moved or removed first.
+
+---
+
+## Folders
+
+### How Folders Work
+
+Every contact starts with two automatic folders:
+- **Documents** — the main working folder for all incoming documents
+- **Review** — a staging folder for documents that need special attention before being filed
+
+You can create as many additional folders as you need.
+
+<img
+  src="/images/user-guide/folder-structure.png"
+  alt="Folder structure under a contact"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Expanded contact in the sidebar or contact detail view showing the folder hierarchy — Documents, Review, and a few custom folders */}
+
+---
+
+### Creating a Folder
+
+1. Open a contact
+2. Click **+ New Folder**
+3. Enter a folder name — for example *Q1 2025 Invoices*, *Contracts*, or *Approved*
+4. Save
+
+Folders can be created at any depth — a folder can contain other folders if needed.
+
+---
+
+### Moving Documents Between Folders
+
+Documents can be moved to any folder at any time (unless the document is **Approved** and locked):
+
+1. Open the document
+2. In the right panel, use the **Move to Folder** action
+3. Select the destination contact and folder
+4. Confirm
+
+You can also move documents in bulk using [Batch Operations](/user-guide/batch-operations).
+
+---
+
+### Deleting a Folder
+
+1. Open the contact
+2. Open the folder you want to delete
+3. Click **Delete Folder**
+
+<Warning>
+  A folder must be empty before it can be deleted. Move or delete all documents in the folder first.
+</Warning>
+
+---
+
+## Organising for Scale
+
+Here are some folder naming patterns that work well as document volumes grow:
+
+<AccordionGroup>
+  <Accordion title="By period — for accounting firms">
+    ```
+    Client Name/
+    ├── 2025-Q1 Invoices
+    ├── 2025-Q2 Invoices
+    ├── 2025 Contracts
+    └── Review
+    ```
+  </Accordion>
+  <Accordion title="By document type — for law firms">
+    ```
+    Client Name/
+    ├── Contracts
+    ├── Court Documents
+    ├── Correspondence
+    ├── Invoices
+    └── Review
+    ```
+  </Accordion>
+  <Accordion title="By status — for operations teams">
+    ```
+    Vendor Name/
+    ├── Incoming
+    ├── Approved
+    ├── Exported to ERP
+    └── Archived
+    ```
+  </Accordion>
+  <Accordion title="By project — for MNCs">
+    ```
+    Business Unit/
+    ├── Project Alpha
+    │   ├── Invoices
+    │   └── Contracts
+    ├── Project Beta
+    └── General
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Use the **Rules Engine** to move documents between folders automatically based on extracted content — for example, automatically move all documents where `vendor = "Acme"` to the Acme contact's folder. See [Rules Engine](/user-guide/rules-engine) for details.
+</Tip>

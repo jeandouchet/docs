@@ -1,0 +1,153 @@
+---
+title: "QuickBooks Integration"
+sidebarTitle: "QuickBooks"
+description: "Automatically create Bills and Invoices in QuickBooks from RecordEngine's extracted document data."
+---
+
+The QuickBooks integration takes the structured data RecordEngine extracts from invoices and receipts — vendor, date, amounts, line items — and creates the corresponding Bill or Invoice in QuickBooks automatically, eliminating manual data entry entirely.
+
+---
+
+## How It Works
+
+<Steps>
+  <Step title="Document is processed in RecordEngine">
+    An invoice or receipt is uploaded, processed by the AI, and reviewed. The AI extracts vendor name, invoice date, due date, line items, amounts, and tax.
+  </Step>
+  <Step title="Document is approved and exported">
+    When you set the document to **Export** status, RecordEngine fires an outbound webhook with the full structured payload — all extracted fields and line items.
+  </Step>
+  <Step title="Automation creates the Bill in QuickBooks">
+    Your automation platform receives the webhook, maps the fields to QuickBooks Bill format, and creates the record via the QuickBooks API. The Bill appears in QuickBooks ready for payment.
+  </Step>
+</Steps>
+
+---
+
+## What Gets Created in QuickBooks
+
+RecordEngine's Standard Invoice profile maps directly to QuickBooks Bill fields:
+
+| RecordEngine Field | QuickBooks Bill Field |
+|-------------------|-----------------------|
+| `vendor` | Vendor (matched by name) |
+| `invoice_date` | Bill Date |
+| `due_date` | Due Date |
+| `invoice_number` | Ref No. |
+| `total_amount` | Total Amount |
+| `currency` | Currency |
+| Line item — description | Line Description |
+| Line item — quantity | Qty |
+| Line item — unit_price | Unit Price |
+| Line item — amount | Amount |
+
+<Info>
+  QuickBooks matches the vendor by name. Make sure the vendor name extracted by RecordEngine matches the vendor name in your QuickBooks contacts list exactly — or use the "contains" condition in your automation to handle minor variations.
+</Info>
+
+---
+
+## Step 1 — Configure the Webhook in RecordEngine
+
+1. Go to **Settings → Webhooks** in RecordEngine
+2. Enter your automation platform's webhook URL in the **Document Webhook URL** field
+3. Save
+
+Every document that reaches **Export** status will now POST its full payload to that URL.
+
+---
+
+## Step 2 — Connect QuickBooks in Your Automation Platform
+
+In your automation platform, connect your QuickBooks account using the native QuickBooks connector. You'll need:
+
+- QuickBooks Online account (the API integration requires QuickBooks Online — not QuickBooks Desktop)
+- Admin access to authorise the OAuth connection
+
+---
+
+## Step 3 — Build the Automation Scenario
+
+**Trigger:** Webhooks — Custom Webhook (paste the generated URL into RecordEngine Settings)
+
+**Action 1:** Parse the incoming webhook payload to access all fields
+
+**Action 2:** QuickBooks — Create Bill
+- Map the fields from the webhook payload to the QuickBooks Bill fields using the table above
+
+<img
+  src="/images/integrations/automation-scenario-quickbooks.png"
+  alt="Automation scenario — RecordEngine webhook to QuickBooks Bill"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario showing Webhook trigger → QuickBooks Create Bill module with field mapping visible */}
+
+---
+
+## Step 4 — Map Line Items
+
+Line items require special handling — the webhook payload includes them as an array:
+
+```json
+{
+  "line_items": [
+    {
+      "description": "Consulting services — October",
+      "quantity": 10,
+      "unit_price": 500.00,
+      "amount": 5000.00
+    },
+    {
+      "description": "Expenses reimbursement",
+      "quantity": 1,
+      "unit_price": 320.50,
+      "amount": 320.50
+    }
+  ]
+}
+```
+
+In your automation platform, use an iterator or array mapper to loop through `line_items` and create a line for each item in the QuickBooks Bill.
+
+---
+
+## Step 5 — Test the Integration
+
+1. Upload a test invoice to RecordEngine and process it with the Standard Invoice profile
+2. Verify all fields extract correctly — especially vendor name, amounts, and line items
+3. Approve and Export the document
+4. Check your automation platform's execution log — confirm the webhook was received
+5. Open QuickBooks — the Bill should appear under the vendor within 30 seconds
+
+---
+
+## Alternative — CSV Import
+
+If you prefer not to use an automation platform, you can export a CSV from RecordEngine and import it into QuickBooks manually.
+
+**Export from RecordEngine:**
+1. In the Documents list, select the documents you want to export
+2. Click **CSV Export**
+3. The downloaded CSV uses your extraction profile field labels as column headers
+
+**Import into QuickBooks:**
+1. In QuickBooks, go to **File → Import → From CSV**
+2. Map the CSV columns to QuickBooks fields
+3. Review and confirm the import
+
+<Tip>
+  The CSV export approach works well for batch imports at end-of-month. The webhook approach is better for real-time processing where you want Bills created the moment a document is approved.
+</Tip>
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Vendor not found in QuickBooks | The vendor name from the document doesn't match QuickBooks exactly. Add a step in your automation to search for the vendor first, then create it if not found. |
+| Duplicate Bills being created | Add a check in your automation: search QuickBooks for existing Bills with the same `invoice_number` before creating a new one. |
+| Line items not appearing | Confirm the `line_items` array in the webhook payload is not empty. Check the document in RecordEngine — if the invoice has no table, line items won't be extracted. |
+| Amounts don't match | Check if the invoice includes taxes or discounts as separate line items. Map these to the appropriate QuickBooks tax or discount fields. |
+
+For more help see [Integration Troubleshooting](/troubleshooting/integration-issues).

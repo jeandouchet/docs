@@ -1,0 +1,142 @@
+---
+title: "API Overview"
+sidebarTitle: "Overview"
+description: "Everything you need to know about the RecordEngine REST API before making your first call."
+---
+
+RecordEngine exposes a **REST API** that gives you programmatic access to everything the UI can do — uploading documents, querying extracted data, updating statuses, managing contacts and folders, and triggering AI chat. Combined with the outbound webhook system, the API is the foundation for all RecordEngine integrations.
+
+<img
+  src="/images/api-reference/swagger-ui.png"
+  alt="RecordEngine Swagger UI at /api/docs"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Swagger UI at /api/docs showing the list of endpoint groups */}
+
+---
+
+## Base URL
+
+All API endpoints are available at:
+
+```
+https://YOUR-INSTANCE/api/
+```
+
+For example, if your RecordEngine server is at `https://a9f3d7e2.recordengine.ai`, the API base URL is:
+
+```
+https://a9f3d7e2.recordengine.ai/api/
+```
+
+For local installations, the base URL is:
+
+```
+http://localhost:8510/
+```
+
+---
+
+## Interactive Documentation
+
+RecordEngine includes a full **Swagger UI** at `/api/docs`:
+
+```
+https://YOUR-INSTANCE/api/docs
+```
+
+The Swagger UI lets you browse all available endpoints, see request and response schemas, and make live API calls directly from your browser using your Bearer token.
+
+<Tip>
+  The Swagger UI is the fastest way to explore the API and test calls without writing any code. Use it to find the exact field names and response formats before building your integration.
+</Tip>
+
+---
+
+## Response Format
+
+All API responses are JSON. A successful response returns an HTTP `200` status code with a JSON body. Errors return an appropriate HTTP error code with a detail message:
+
+```json
+// Success
+{
+  "id": 847,
+  "filename": "acme-invoice.pdf",
+  "status": "Needs Review",
+  "confidence_score": 87
+}
+
+// Error
+{
+  "detail": "Document not found"
+}
+```
+
+---
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `201` | Created successfully |
+| `400` | Bad request — check your request body |
+| `401` | Unauthorised — missing or invalid Bearer token |
+| `403` | Forbidden — valid token but insufficient permissions |
+| `404` | Resource not found |
+| `422` | Unprocessable entity — request body failed validation |
+| `500` | Server error — check container logs |
+
+---
+
+## Rate Limits
+
+The RecordEngine API has no enforced rate limits by default for on-premise deployments. Document processing throughput is governed by your hardware — specifically GPU VRAM and processing queue depth — rather than by API rate limiting.
+
+---
+
+## API and Webhooks Together
+
+The API and outbound webhooks are designed to work together:
+
+- **Inbound (API):** Your systems push documents and data **into** RecordEngine
+- **Outbound (Webhooks):** RecordEngine pushes processed results **out** to your systems
+
+A typical integration uses both:
+
+```
+Your system  →  POST /api/documents/upload  →  RecordEngine
+RecordEngine →  Webhook POST to your URL   →  Your system
+```
+
+See [Outbound Webhooks](/api-reference/webhooks) for the full webhook payload schemas.
+
+---
+
+## Available Endpoint Groups
+
+| Group | What it covers |
+|-------|---------------|
+| [Documents](/api-reference/documents) | Upload, list, retrieve, update status, manage extracted fields |
+| [Contacts & Folders](/api-reference/contacts-and-folders) | Create and list contacts and folders |
+| [CRM Correlation](/api-reference/crm-correlation) | Pass and retrieve `external_refs` for CRM record linking |
+| [Deep-Links](/api-reference/deep-links) | Generate direct URLs to open specific documents in the UI |
+| [Webhooks](/api-reference/webhooks) | Outbound webhook configuration and payload schemas |
+| [Chat API](/api-reference/chat-api) | Ask questions across documents programmatically |
+
+---
+
+## OpenAPI Schema
+
+The full OpenAPI 3.0 schema is available at:
+
+```
+https://YOUR-INSTANCE/api/openapi.json
+```
+
+You can import this into Postman, Insomnia, or any other API client:
+
+- **Postman:** File → Import → Link → paste the URL above
+- **Insomnia:** Application → Import → From URL → paste the URL above
+
+See [OpenAPI / Swagger](/api-reference/openapi-spec) for more details.

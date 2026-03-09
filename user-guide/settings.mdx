@@ -1,0 +1,175 @@
+---
+title: "Settings & Configuration"
+sidebarTitle: "Settings"
+description: "Configure webhooks, API tokens, user accounts, email intake, AI models, and backups."
+---
+
+The **Settings** page is where you configure RecordEngine for your organisation — webhook URLs, API credentials, user management, email intake, and system preferences. Only **Admin** users can access Settings.
+
+<img
+  src="/images/user-guide/settings-webhooks.png"
+  alt="Settings page showing webhook configuration"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Settings page with the Webhooks section visible, URL fields filled in */}
+
+---
+
+## General
+
+### Instance Name
+
+Set a display name for this RecordEngine instance — for example *"Acme Corp — Finance"* or *"Shanghai Office"*. The instance name appears in the UI header and is used to generate the email intake address.
+
+---
+
+## Webhooks
+
+RecordEngine can send HTTP POST notifications to external systems when specific events occur. Configure your webhook URLs here.
+
+| Webhook | When it fires |
+|---------|--------------|
+| **Document Webhook URL** | Every time a document reaches **Export** status — carries the full extracted payload |
+| **Contact Webhook URL** | Every time a contact is created or updated |
+| **Folder Webhook URL** | Every time a folder is created or updated |
+
+### Configuring a Webhook
+
+1. Go to **Settings → Webhooks**
+2. Paste the destination URL into the appropriate field
+3. Click **Save**
+
+That's it — no signing keys or additional authentication setup is required on the RecordEngine side. The webhook POST includes a Bearer token header that your receiver can use to verify the request came from RecordEngine.
+
+<Tip>
+  Don't have a receiver built yet? Use [webhook.site](https://webhook.site) to get a free temporary URL for testing. Paste it into the Document Webhook URL field, export a document, and you'll see the full payload in your browser.
+</Tip>
+
+See [Outbound Webhooks](/api-reference/webhooks) for the complete payload schema for each webhook type.
+
+---
+
+## API
+
+### Your API Token
+
+RecordEngine uses **Bearer token authentication** for all API calls. Your token is displayed in **Settings → API**.
+
+To use it in an API request:
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+### Regenerating the Token
+
+Click **Regenerate Token** to issue a new token. The old token is immediately invalidated — any integrations using it will need to be updated with the new token.
+
+<Warning>
+  Regenerating your token will break any existing integrations, automation scenarios, or scripts that use the current token. Update them all before regenerating, or update them immediately after.
+</Warning>
+
+---
+
+## Email Intake
+
+The **Email Intake** section shows your instance's unique intake email address. Any file sent as an attachment to this address is automatically ingested and processed by RecordEngine.
+
+Copy the address and share it with anyone who needs to submit documents by email.
+
+See [Email Intake](/user-guide/email-intake) for the full guide on how this works.
+
+---
+
+## AI Model
+
+### Fast and Precise Modes
+
+RecordEngine supports two AI processing modes:
+
+| Mode | Description |
+|------|-------------|
+| **Fast** | Optimised for speed — ideal for high-volume, routine document types |
+| **Precise** | Higher accuracy — best for complex, handwritten, or unusual documents |
+
+<Info>
+  Both modes currently use the same underlying model. The Precise mode will be re-enabled with a higher-accuracy model in a future update.
+</Info>
+
+---
+
+## User Management
+
+### Adding a User
+
+Admins can create additional user accounts so team members can access RecordEngine without sharing credentials.
+
+1. Go to **Settings → User Management**
+2. Click **+ Add User**
+3. Set:
+   - **Username**
+   - **Password**
+   - **Role** — Admin or User (see role permissions below)
+4. Save
+
+### Role Permissions
+
+| Feature | Admin | User |
+|---------|-------|------|
+| Upload documents | ✅ | ✅ |
+| Review and edit documents | ✅ | ✅ |
+| Approve documents | ✅ | ✅ |
+| Export documents | ✅ | ✅ |
+| Create contacts and folders | ✅ | ✅ |
+| Use AI Chat | ✅ | ✅ |
+| Create extraction profiles | ✅ | ✅ |
+| Create rules | ✅ | ✅ |
+| Access Settings | ✅ | ❌ |
+| Manage users | ✅ | ❌ |
+| View API token | ✅ | ❌ |
+| Configure webhooks | ✅ | ❌ |
+| Create / restore backups | ✅ | ❌ |
+
+### Changing a Password
+
+1. Go to **Settings → User Management**
+2. Click the user's name
+3. Enter a new password and confirm
+4. Save
+
+### Deleting a User
+
+Click the user's name → **Delete User**. The user's documents and audit log entries are retained.
+
+---
+
+## Backup & Restore
+
+Regular backups protect your documents and extracted data against hardware failure or accidental deletion.
+
+### Creating a Backup
+
+1. Go to **Settings → Backup**
+2. Click **Create Backup**
+3. A ZIP file downloads to your computer containing:
+   - The SQLite database (all documents, contacts, extracted fields, audit log)
+   - All uploaded files from the storage volume
+
+Store the backup ZIP in a safe location — ideally off the RecordEngine server (external drive, NAS, or secure cloud storage).
+
+### Restoring from Backup
+
+Contact RecordEngine support for a restore procedure appropriate to your deployment type. For self-managed deployments, the restore process is documented in the [Deployment Guide](/deployment/docker-linux).
+
+<Warning>
+  Always create a backup before updating RecordEngine to a new version.
+</Warning>
+
+---
+
+## Themes
+
+Select the visual theme for the RecordEngine interface. Changes apply immediately and persist across sessions for all users.
+
+Available themes: **Midnight** (dark), **Fresh Light**, **Clean Pro**
+
+For full customisation options including the Theme Builder, see [Themes & Customization](/user-guide/themes-and-customization).
