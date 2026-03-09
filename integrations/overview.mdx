@@ -1,0 +1,149 @@
+---
+title: "Integrations Overview"
+sidebarTitle: "Overview"
+description: "How RecordEngine connects to the rest of your software stack — without sending any data to the cloud."
+---
+
+RecordEngine is built integration-first. Every document, every extracted field, and every status change is accessible via REST API and outbound webhooks — so the structured data the AI extracts can flow directly into Salesforce, QuickBooks, Xero, or any other system your team uses.
+
+All of this happens **without any document data leaving your server**.
+
+<img
+  src="/images/integrations/crm-correlation-diagram.png"
+  alt="RecordEngine integration architecture diagram"
+  className="rounded-lg"
+/>
+{/* 📸 DIAGRAM NEEDED: Flow diagram showing the 3 integration patterns described below — can be created in draw.io, Figma, or Lucidchart */}
+
+---
+
+## Three Integration Patterns
+
+All RecordEngine integrations are built from a combination of these three patterns:
+
+<CardGroup cols={3}>
+  <Card title="1. Push In" icon="arrow-right-to-bracket">
+    Your external system (CRM, ERP, email) sends a document to RecordEngine via the API, including a reference ID that links the document back to the originating record.
+  </Card>
+  <Card title="2. Push Out" icon="arrow-right-from-bracket">
+    RecordEngine fires an outbound webhook when a document is approved or exported. Your external system receives the full structured payload and updates its records automatically.
+  </Card>
+  <Card title="3. Deep-Link" icon="link">
+    A URL stored in your CRM opens the exact document in RecordEngine directly — so your team can click from a Salesforce opportunity straight to the supporting invoice, without searching.
+  </Card>
+</CardGroup>
+
+Most integrations use all three patterns together to create a fully bidirectional pipeline.
+
+---
+
+## The CRM Correlation Key
+
+The glue that makes bidirectional integrations work is a field called **`external_refs`**. When a document is uploaded via the API, you can attach a reference to the originating CRM record:
+
+```json
+{
+  "external_refs": {
+    "salesforce": {
+      "record_id": "001Qy00000BnXt2IAF",
+      "record_type": "Opportunity",
+      "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+    }
+  }
+}
+```
+
+This reference is:
+- **Stored** on the document in RecordEngine
+- **Displayed** as a clickable link in the document detail panel (🔗 External Links)
+- **Echoed** in every outbound webhook payload — so when the document is approved, your automation platform knows exactly which Salesforce record to update
+
+See [How CRM Correlation Works](/integrations/how-crm-correlation-works) for the full technical details.
+
+---
+
+## Available Integrations
+
+<CardGroup cols={2}>
+  <Card title="Salesforce" icon="salesforce" href="/integrations/salesforce">
+    Two-way sync with Opportunities, Contacts, and Accounts. Store extracted invoice data on Salesforce records. Deep-link from Salesforce straight to the document.
+  </Card>
+  <Card title="HubSpot" icon="hubspot" href="/integrations/hubspot">
+    Attach extracted data to HubSpot Deals and Contacts. Trigger HubSpot workflows when documents are approved.
+  </Card>
+  <Card title="Microsoft Dynamics" icon="microsoft" href="/integrations/microsoft-dynamics">
+    Bidirectional sync with Dynamics 365 records via the same CRM correlation pattern as Salesforce.
+  </Card>
+  <Card title="QuickBooks" icon="receipt" href="/integrations/quickbooks">
+    Create Bills and Invoices in QuickBooks automatically from RecordEngine's extracted line items and totals.
+  </Card>
+  <Card title="Xero" icon="file-invoice" href="/integrations/xero">
+    Push approved invoices and receipts to Xero as draft Bills — ready for your accountant to review.
+  </Card>
+  <Card title="WeCom" icon="comment" href="/integrations/wecom">
+    Send document approval notifications to WeCom (Enterprise WeChat) group channels.
+  </Card>
+  <Card title="Workflow Automation" icon="diagram-project" href="/integrations/workflow-automation">
+    Connect RecordEngine to any system using no-code automation platforms and the webhook + API layer.
+  </Card>
+  <Card title="Custom Webhooks" icon="code" href="/integrations/custom-webhooks">
+    Build your own integration using the outbound webhook payload. Full schema, code examples in Python and Node.js.
+  </Card>
+</CardGroup>
+
+---
+
+## How the Data Flows
+
+Here is a complete end-to-end example for a Salesforce integration:
+
+```
+1. Salesforce Opportunity is created
+       ↓
+2. Automation triggers → calls RecordEngine API to upload the supporting document
+   (includes external_refs.salesforce.record_id)
+       ↓
+3. RecordEngine AI extracts fields, scores confidence
+       ↓
+4. Reviewer approves document in RecordEngine
+       ↓
+5. RecordEngine fires outbound webhook with full payload
+   (includes extracted fields + external_refs.salesforce.record_id)
+       ↓
+6. Automation receives webhook → reads record_id
+   → updates Salesforce Opportunity with vendor, amount, invoice number
+       ↓
+7. Deep-link URL stored on Salesforce record
+   → Sales rep clicks link → jumps directly to document in RecordEngine
+```
+
+---
+
+## No Data Leaves Your Server
+
+Every integration uses **outbound webhooks and inbound API calls** — RecordEngine never initiates a connection to Salesforce, QuickBooks, or any other cloud service directly. Your automation platform acts as the intermediary, running on its own infrastructure.
+
+This means:
+- RecordEngine operates fully offline — it has no cloud dependencies
+- Document content is never transmitted to a third-party AI or cloud service
+- You control exactly which fields are shared with which external systems
+
+---
+
+## Getting Started
+
+The fastest way to start integrating is:
+
+<Steps>
+  <Step title="Configure your webhook URL">
+    Go to **Settings → Webhooks** and enter the URL that should receive document payloads when documents are exported.
+  </Step>
+  <Step title="Get your API token">
+    Go to **Settings → API** and copy your Bearer token. This is used to authenticate all inbound API calls.
+  </Step>
+  <Step title="Pick your integration guide">
+    Choose the platform you want to connect from the cards above and follow the step-by-step guide.
+  </Step>
+</Steps>
+
+If you need help designing a custom integration, contact us at [hello@recordengine.ai](mailto:hello@recordengine.ai).

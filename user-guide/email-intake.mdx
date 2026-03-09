@@ -1,0 +1,113 @@
+---
+title: "Email Intake"
+sidebarTitle: "Email Intake"
+description: "Send documents to RecordEngine by email — attachments are automatically extracted and processed."
+---
+
+**Email Intake** lets anyone send a document to RecordEngine simply by emailing it as an attachment. The file lands in RecordEngine's inbox, gets processed by the AI exactly like a manually uploaded document, and the sender's email address is recorded for follow-up.
+
+This is the fastest way to get documents into the system for users who aren't logging into RecordEngine directly — for example, a client emailing an invoice, or a colleague forwarding a scanned receipt from their phone.
+
+---
+
+## How It Works
+
+<Steps>
+  <Step title="Sender emails an attachment">
+    Anyone with your intake address sends an email with one or more file attachments. Supported formats are the same as manual upload: PDF, JPG, PNG, DOCX, XLSX, CSV, TXT, MP3, WAV.
+  </Step>
+  <Step title="Attachment is detected and queued">
+    The automation layer picks up the email within minutes, extracts the attachment, and submits it to RecordEngine via the API. The email body is saved as a companion text document.
+  </Step>
+  <Step title="AI processes the document">
+    RecordEngine processes the attachment exactly as if it had been uploaded manually — AI extraction, confidence scoring, and Rules Engine rules all apply.
+  </Step>
+  <Step title="Document appears in the Inbox folder">
+    The processed document appears under the **System** contact in the **Inbox** folder, ready for review.
+  </Step>
+  <Step title="Sender's email is recorded">
+    The sender's email address is stored in the document's **Notes** field automatically. This allows you to reply to the sender with confirmation or follow-up questions.
+  </Step>
+</Steps>
+
+---
+
+## Finding Your Intake Address
+
+Each RecordEngine instance has a unique intake email address.
+
+1. Go to **Settings** in the left sidebar
+2. Scroll to the **Email Intake** section
+3. Your intake address is displayed there — it looks like:
+
+```
+inbox+instancename-id@recordengine.ai
+```
+
+<img
+  src="/images/user-guide/email-intake-settings.png"
+  alt="Settings page showing the Email Intake address"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Settings page scrolled to the Email Intake section, showing the intake address clearly */}
+
+<Info>
+  Each instance has its own unique intake address. If you have multiple RecordEngine deployments (e.g. one per client), each has a different address and documents route to the correct instance automatically.
+</Info>
+
+---
+
+## Testing Email Intake
+
+To verify it's working:
+
+1. Copy your intake address from Settings
+2. Send a test email from any email client with a PDF invoice attached
+3. Subject line: anything — for example *"Test intake"*
+4. Wait 1–3 minutes
+5. Check **System → Inbox** in RecordEngine — the document should appear and begin processing
+
+If the document doesn't appear after 5 minutes, check the [Integration Troubleshooting](/troubleshooting/integration-issues) guide.
+
+---
+
+## What Happens to the Email Body
+
+If the email has a text body (not just an attachment), RecordEngine saves it as a separate `.txt` document in the Inbox folder alongside the attachment. This preserves any context the sender included — for example, instructions or a reference number mentioned in the email body.
+
+---
+
+## Multiple Attachments in One Email
+
+If a single email contains multiple attachments, each attachment becomes a separate document in RecordEngine. They are processed independently and each receives its own AI extraction, confidence score, and status.
+
+---
+
+## Routing and Organisation
+
+Documents received via email intake land in the **System → Inbox** folder by default. From there, your team can:
+
+- **Move them manually** to the correct client contact and folder
+- **Use the Rules Engine** to route them automatically based on extracted fields — for example, move all documents where `vendor contains "Acme"` to the Acme contact folder automatically
+
+See [Rules Engine](/user-guide/rules-engine) for how to set up automatic routing rules.
+
+---
+
+## Supported Senders
+
+There are no restrictions on who can send to your intake address — any email sender can submit documents. If you want to restrict intake to specific senders or add a passcode requirement, contact RecordEngine support — enhanced routing and filtering features are on the roadmap.
+
+<Warning>
+  Keep your intake address private — share it only with trusted senders. Anyone who has the address can submit documents to your RecordEngine instance.
+</Warning>
+
+---
+
+## Audit Trail
+
+Every document received via email intake is logged in the [Audit Log](/user-guide/audit-log) with:
+- Source: `API` (email intake routes through the API)
+- Filename of the attachment
+- Timestamp of receipt
+- The sender's email address (also in the document's Notes field)

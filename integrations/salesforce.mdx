@@ -1,0 +1,221 @@
+---
+title: "Salesforce Integration"
+sidebarTitle: "Salesforce"
+description: "Two-way sync between RecordEngine and Salesforce — automatically attach extracted document data to Opportunities, Contacts, and Accounts."
+---
+
+The Salesforce integration creates a fully bidirectional pipeline between RecordEngine and your Salesforce org. Documents flow in from Salesforce, the AI extracts the data, and the structured results flow back — automatically updating the right Salesforce record without any manual copy-paste.
+
+---
+
+## Architecture Overview
+
+The integration has two scenarios that work together:
+
+<CardGroup cols={2}>
+  <Card title="Scenario A — Inbound" icon="arrow-right-to-bracket">
+    Salesforce triggers → document is uploaded to RecordEngine with the Salesforce record ID attached.
+  </Card>
+  <Card title="Scenario B — Outbound" icon="arrow-right-from-bracket">
+    Document is approved in RecordEngine → Salesforce record is updated with extracted fields.
+  </Card>
+</CardGroup>
+
+<img
+  src="/images/integrations/salesforce-flow-diagram.png"
+  alt="Salesforce ↔ RecordEngine bidirectional flow diagram"
+  className="rounded-lg"
+/>
+{/* 📸 DIAGRAM NEEDED: Salesforce → Automation Platform (Scenario A) → RecordEngine → Automation Platform (Scenario B) → Salesforce */}
+
+---
+
+## What Gets Synced
+
+| RecordEngine Field | Salesforce Field (example) |
+|-------------------|---------------------------|
+| `vendor` | `Vendor_Name__c` (custom field) |
+| `invoice_number` | `Invoice_Number__c` |
+| `invoice_date` | `Invoice_Date__c` |
+| `total_amount` | `Invoice_Total__c` |
+| `currency` | `CurrencyIsoCode` |
+| `confidence_score` | `RE_Confidence__c` |
+| Document deep-link URL | `RE_Document_URL__c` |
+
+You define exactly which fields sync — only the fields you map are written to Salesforce.
+
+---
+
+## Step 1 — Add Custom Fields to Salesforce
+
+In Salesforce Setup, add these custom fields to your **Opportunity** object (or whichever object you're syncing):
+
+| Field Label | API Name | Type |
+|-------------|----------|------|
+| RE Document URL | `RE_Document_URL__c` | URL |
+| Invoice Number | `Invoice_Number__c` | Text(50) |
+| Invoice Date | `Invoice_Date__c` | Date |
+| Invoice Total | `Invoice_Total__c` | Currency |
+| RE Confidence | `RE_Confidence__c` | Number(3,0) |
+| Vendor Name | `Vendor_Name__c` | Text(100) |
+
+<Tip>
+  You don't have to add all of these. Start with just `RE_Document_URL__c` and `Invoice_Total__c` — get the integration working, then add more fields as needed.
+</Tip>
+
+---
+
+## Step 2 — Get Your RecordEngine Credentials
+
+You need two values from RecordEngine:
+
+1. **API Token** — go to **Settings → API** and copy your Bearer token
+2. **Instance URL** — the base URL of your RecordEngine server (e.g. `https://a9f3d7e2.recordengine.ai`)
+
+Keep these handy — you'll use them in the automation scenarios below.
+
+---
+
+## Step 3 — Set Up Scenario A (Salesforce → RecordEngine)
+
+Scenario A watches for new or updated Salesforce records and uploads a document to RecordEngine with the Salesforce record ID attached.
+
+**Trigger:** Salesforce — Watch Records (Opportunity, new or updated)
+
+**Action:** HTTP — Make a Request
+- Method: `POST`
+- URL: `https://YOUR-INSTANCE/api/documents/upload`
+- Headers: `Authorization: Bearer YOUR_TOKEN`
+- Body type: `multipart/form-data`
+- Fields:
+  - `file` → the document file (from a Salesforce attachment or Files object)
+  - `contact_id` → your RecordEngine contact ID for this Salesforce account
+  - `folder_id` → target folder ID
+  - `profile_id` → extraction profile ID (e.g. Standard Invoice)
+  - `external_refs` → paste this template, replacing the record ID dynamically:
+
+```json
+{
+  "salesforce": {
+    "record_id": "{{salesforce_opportunity_id}}",
+    "record_type": "Opportunity",
+    "record_url": "https://YOUR-ORG.salesforce.com/{{salesforce_opportunity_id}}"
+  }
+}
+```
+
+<img
+  src="/images/integrations/automation-scenario-salesforce-a.png"
+  alt="Scenario A — Salesforce trigger to RecordEngine upload"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario showing Scenario A — Salesforce Watch Records module connected to HTTP POST module */}
+
+---
+
+## Step 4 — Set Up Scenario B (RecordEngine → Salesforce)
+
+Scenario B receives the RecordEngine outbound webhook when a document is approved or exported, reads the Salesforce record ID from `external_refs`, and updates the Salesforce record.
+
+**Trigger:** Webhooks — Custom Webhook
+- Create a new webhook URL — this is the URL you'll paste into RecordEngine Settings
+
+**Action 1:** JSON — Parse JSON
+- Parse the incoming webhook body to access all fields including `external_refs.salesforce.record_id`
+
+**Action 2:** Salesforce — Update Record
+- Object: Opportunity
+- Record ID: `{{body.external_refs.salesforce.record_id}}`
+- Fields to update:
+  - `Invoice_Number__c` → `{{body.extracted_fields.invoice_number}}`
+  - `Invoice_Date__c` → `{{body.extracted_fields.invoice_date}}`
+  - `Invoice_Total__c` → `{{body.extracted_fields.total_amount}}`
+  - `Vendor_Name__c` → `{{body.extracted_fields.vendor}}`
+  - `RE_Confidence__c` → `{{body.confidence_score}}`
+  - `RE_Document_URL__c` → `{{body.doc_url}}`
+
+<img
+  src="/images/integrations/automation-scenario-salesforce-b.png"
+  alt="Scenario B — RecordEngine webhook to Salesforce update"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario showing Scenario B — Webhook trigger → JSON parse → Salesforce Update Record */}
+
+---
+
+## Step 5 — Paste the Webhook URL into RecordEngine
+
+1. Copy the webhook URL generated by your automation platform in Scenario B
+2. In RecordEngine, go to **Settings → Webhooks**
+3. Paste the URL into the **Document Webhook URL** field
+4. Save
+
+From now on, every time a document reaches Export status in RecordEngine, the webhook fires and Scenario B updates the Salesforce record.
+
+---
+
+## Step 6 — Test the Integration
+
+1. In Salesforce, create or update an Opportunity that triggers Scenario A
+2. Check RecordEngine — the document should appear in the target folder within 2 minutes
+3. In RecordEngine, open the document — expand **🔗 External Links** to confirm the Salesforce record link is stored
+4. Approve and Export the document
+5. Check Salesforce — the Opportunity fields should be updated within 30 seconds
+6. Click the `RE_Document_URL__c` link — it should open the exact document in RecordEngine
+
+---
+
+## Deep-Link from Salesforce
+
+Once `RE_Document_URL__c` is populated on a Salesforce record, your sales team can click directly from the Opportunity to the source document in RecordEngine — without searching or navigating.
+
+The URL format is:
+```
+https://YOUR-INSTANCE.recordengine.ai/api/document/{id}/view
+```
+
+This redirects to RecordEngine and automatically opens the document detail panel.
+
+---
+
+## For Developer Teams — Apex Trigger
+
+If your Salesforce org uses custom Apex development, you can trigger the RecordEngine API upload directly from a trigger rather than using an automation platform:
+
+```apex
+@future(callout=true)
+public static void uploadToRecordEngine(Id oppId, String documentBody, String filename) {
+    HttpRequest req = new HttpRequest();
+    req.setEndpoint('https://YOUR-INSTANCE/api/documents/upload');
+    req.setMethod('POST');
+    req.setHeader('Authorization', 'Bearer YOUR_TOKEN');
+
+    // Build multipart form body
+    String boundary = '----FormBoundary7MA4YWxkTrZu0gW';
+    String body = '--' + boundary + '\r\n';
+    body += 'Content-Disposition: form-data; name="external_refs"\r\n\r\n';
+    body += '{"salesforce":{"record_id":"' + oppId + '","record_type":"Opportunity"}}';
+    body += '\r\n--' + boundary + '--';
+
+    req.setBody(body);
+    Http http = new Http();
+    HttpResponse res = http.send(req);
+}
+```
+
+<Info>
+  Remember to add your RecordEngine instance URL to Salesforce's **Remote Site Settings** (Setup → Remote Site Settings) before making callouts.
+</Info>
+
+---
+
+## Troubleshooting
+
+| Issue | Check |
+|-------|-------|
+| Document not appearing in RecordEngine | Confirm Scenario A executed successfully in the automation log. Check the API token and instance URL. |
+| `external_refs` not showing in RecordEngine UI | Confirm the `external_refs` JSON was passed as a string in the upload request body, not a nested object. |
+| Salesforce record not updating | Confirm the webhook URL in RecordEngine Settings matches the URL from Scenario B. Check Scenario B execution log for errors. |
+| `RE_Document_URL__c` is empty | `doc_url` in the webhook requires `SERVER_URL` to be configured on your RecordEngine server. Contact your administrator. |
+
+For more details see [Integration Troubleshooting](/troubleshooting/integration-issues).
