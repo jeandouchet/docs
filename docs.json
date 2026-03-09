@@ -7,15 +7,11 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#D4A843",
-    "light": "#F0C060",
-    "dark": "#5C1A1B",
-    "background": {
-      "dark": "#0A1628",
-      "light": "#FFFFFF"
-    }
-  },
-  "theme": "dark",
+  "primary": "#D4A843",
+  "light": "#F0C060",
+  "dark": "#5C1A1B"
+},
+  "theme": "linden",
   "topbarCtaButton": {
     "name": "Start Private Trial",
     "url": "https://www.recordengine.ai/contact"
@@ -26,112 +22,108 @@
       "url": "https://www.recordengine.ai"
     }
   ],
+ 
+  "navigation": {
   "tabs": [
     {
-      "name": "API Reference",
-      "url": "api-reference"
-    },
-    {
-      "name": "Integrations",
-      "url": "integrations"
-    }
-  ],
-  "anchors": [
-    {
-      "name": "Contact Sales",
-      "icon": "envelope",
-      "url": "https://www.recordengine.ai/contact"
-    },
-    {
-      "name": "Live Demo",
-      "icon": "play",
-      "url": "https://demo.recordengine.ai"
-    }
-  ],
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "getting-started/introduction",
-        "getting-started/system-requirements",
-        "getting-started/installation",
-        "getting-started/quick-start",
-        "getting-started/your-first-document"
+      "tab": "Guides",
+      "groups": [
+        {
+          "group": "Getting Started",
+          "pages": [
+            "getting-started/introduction",
+            "getting-started/system-requirements",
+            "getting-started/installation",
+            "getting-started/quick-start",
+            "getting-started/your-first-document"
+          ]
+        },
+        {
+          "group": "User Guide",
+          "pages": [
+            "user-guide/dashboard",
+            "user-guide/contacts-and-folders",
+            "user-guide/uploading-documents",
+            "user-guide/email-intake",
+            "user-guide/document-workflow",
+            "user-guide/ai-extraction",
+            "user-guide/confidence-scoring",
+            "user-guide/extraction-profiles",
+            "user-guide/rules-engine",
+            "user-guide/document-versioning",
+            "user-guide/batch-operations",
+            "user-guide/advanced-search",
+            "user-guide/ai-chat",
+            "user-guide/audio-transcription",
+            "user-guide/exporting-data",
+            "user-guide/audit-log",
+            "user-guide/themes-and-customization",
+            "user-guide/settings"
+          ]
+        },
+        {
+          "group": "Deployment",
+          "pages": [
+            "deployment/docker-linux",
+            "deployment/docker-windows",
+            "deployment/air-gap-installation",
+            "deployment/gpu-configuration",
+            "deployment/private-cloud",
+            "deployment/multi-user-setup"
+          ]
+        },
+        {
+          "group": "Troubleshooting",
+          "pages": [
+            "troubleshooting/common-issues",
+            "troubleshooting/integration-issues",
+            "troubleshooting/performance-tuning",
+            "troubleshooting/faq"
+          ]
+        }
       ]
     },
     {
-      "group": "User Guide",
-      "pages": [
-        "user-guide/dashboard",
-        "user-guide/contacts-and-folders",
-        "user-guide/uploading-documents",
-        "user-guide/email-intake",
-        "user-guide/document-workflow",
-        "user-guide/ai-extraction",
-        "user-guide/confidence-scoring",
-        "user-guide/extraction-profiles",
-        "user-guide/rules-engine",
-        "user-guide/document-versioning",
-        "user-guide/batch-operations",
-        "user-guide/advanced-search",
-        "user-guide/ai-chat",
-        "user-guide/audio-transcription",
-        "user-guide/exporting-data",
-        "user-guide/audit-log",
-        "user-guide/themes-and-customization",
-        "user-guide/settings"
+      "tab": "Integrations",
+      "groups": [
+        {
+          "group": "Integrations",
+          "pages": [
+            "integrations/overview",
+            "integrations/how-crm-correlation-works",
+            "integrations/salesforce",
+            "integrations/hubspot",
+            "integrations/microsoft-dynamics",
+            "integrations/quickbooks",
+            "integrations/xero",
+            "integrations/wecom",
+            "integrations/workflow-automation",
+            "integrations/custom-webhooks"
+          ]
+        }
       ]
     },
     {
-      "group": "Integrations",
-      "pages": [
-        "integrations/overview",
-        "integrations/how-crm-correlation-works",
-        "integrations/salesforce",
-        "integrations/hubspot",
-        "integrations/microsoft-dynamics",
-        "integrations/quickbooks",
-        "integrations/xero",
-        "integrations/wecom",
-        "integrations/workflow-automation",
-        "integrations/custom-webhooks"
-      ]
-    },
-    {
-      "group": "API Reference",
-      "pages": [
-        "api-reference/overview",
-        "api-reference/authentication",
-        "api-reference/documents",
-        "api-reference/contacts-and-folders",
-        "api-reference/crm-correlation",
-        "api-reference/deep-links",
-        "api-reference/webhooks",
-        "api-reference/chat-api",
-        "api-reference/openapi-spec"
-      ]
-    },
-    {
-      "group": "Deployment",
-      "pages": [
-        "deployment/docker-linux",
-        "deployment/docker-windows",
-        "deployment/air-gap-installation",
-        "deployment/gpu-configuration",
-        "deployment/private-cloud",
-        "deployment/multi-user-setup"
-      ]
-    },
-    {
-      "group": "Troubleshooting",
-      "pages": [
-        "troubleshooting/common-issues",
-        "troubleshooting/integration-issues",
-        "troubleshooting/performance-tuning",
-        "troubleshooting/faq"
+      "tab": "API Reference",
+      "groups": [
+        {
+          "group": "API Reference",
+          "pages": [
+            "api-reference/overview",
+            "api-reference/authentication",
+            "api-reference/documents",
+            "api-reference/contacts-and-folders",
+            "api-reference/crm-correlation",
+            "api-reference/deep-links",
+            "api-reference/webhooks",
+            "api-reference/chat-api",
+            "api-reference/openapi-spec"
+          ]
+        }
       ]
     }
-  ],
+  ]
+},
   "footerSocials": {
     "linkedin": "https://www.linkedin.com/company/recordengine"
   },
