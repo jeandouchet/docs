@@ -1,0 +1,161 @@
+---
+title: "Performance & Capacity"
+sidebarTitle: "Performance"
+description: "Optimise RecordEngine throughput, manage GPU memory, and plan for growing document volumes."
+---
+
+RecordEngine's performance is primarily determined by your GPU. This page explains how to get the most out of your hardware and how to diagnose performance bottlenecks.
+
+---
+
+## Baseline Performance Expectations
+
+With an NVIDIA RTX 4090 (24 GB VRAM) and qwen3.5:9b:
+
+| Document type | Typical processing time |
+|--------------|------------------------|
+| Single-page PDF (text) | 10–20 seconds |
+| Single-page PDF (scanned image) | 20–40 seconds |
+| Multi-page PDF (5–10 pages) | 1–3 minutes |
+| JPG or PNG image | 15–30 seconds |
+| DOCX / TXT | 8–15 seconds |
+| Audio (per minute of audio) | ~15 seconds |
+
+These are per-document times. RecordEngine processes one document at a time from the queue — concurrent processing is not supported in the default configuration.
+
+---
+
+## The Cold Start
+
+**The very first document after any server restart or container restart takes significantly longer** — typically 2–5 minutes. This is normal: the AI model (6.6 GB) is loading from disk into GPU VRAM.
+
+Every subsequent document in that session processes at the normal speed listed above.
+
+**Best practice:** After any restart, run a warmup document immediately:
+
+```bash
+docker exec ollama ollama run qwen3.5:9b "Ready" --keepalive -1
+```
+
+This loads the model into VRAM so the first real document doesn't surprise your users.
+
+The `OLLAMA_KEEP_ALIVE=-1` environment variable keeps the model in VRAM indefinitely — it will not unload until the container stops. This is the correct production configuration.
+
+---
+
+## Monitoring GPU Usage
+
+```bash
+# Live GPU utilisation and VRAM usage
+watch -n 1 nvidia-smi
+
+# One-time snapshot
+nvidia-smi
+```
+
+While a document is being processed, you should see:
+- GPU utilisation: 80–100%
+- VRAM usage: ~7–8 GB for qwen3.5:9b
+
+If GPU utilisation is 0% during processing, Ollama is running on CPU — see [AI Processing Troubleshooting](/troubleshooting/ai-processing).
+
+---
+
+## Queue Depth
+
+RecordEngine uses a database-backed processing queue. Documents wait in **New** status until the AI worker picks them up, then move to **Processing**.
+
+If you're uploading documents faster than they can be processed (e.g. a bulk import of 500 files), the queue grows. This is normal — the watcher processes documents sequentially and will clear the queue. Monitor progress with:
+
+```bash
+# Count documents in queue
+docker exec xr-ui python -c "
+import sqlite3
+conn = sqlite3.connect('/data/xr_docs.db')
+c = conn.cursor()
+c.execute(\"SELECT status, COUNT(*) FROM documents GROUP BY status\")
+for row in c.fetchall(): print(row)
+conn.close()
+"
+```
+
+---
+
+## Optimising Throughput for High Volumes
+
+### Use simple profiles for bulk processing
+
+Complex extraction profiles with many fields take longer because the AI prompt is larger and the response is more detailed. For bulk imports of routine documents, use a profile with only the fields you actually need.
+
+### Pre-warm before bulk imports
+
+Before starting a large batch upload, ensure the model is loaded in VRAM:
+
+```bash
+docker exec ollama ollama run qwen3.5:9b "Ready" --keepalive -1
+```
+
+### Upload via API for pipeline automation
+
+The web UI is convenient for individual uploads, but for high-volume automated pipelines, use the [Documents API](/api-reference/documents). API uploads can be scripted to batch-submit files and monitor processing status programmatically.
+
+---
+
+## Disk Space Management
+
+RecordEngine stores original files plus the SQLite database. Monitor disk usage:
+
+```bash
+# Overall disk usage
+df -h /opt/xr
+
+# Storage directory (uploaded files)
+du -sh /opt/xr/storage/
+
+# Database size
+du -sh /opt/xr/data/xr_docs.db
+```
+
+### Archiving old documents
+
+Documents in **Archived** status are excluded from the default view but remain on disk. If disk space is a concern:
+
+1. Export a backup of the archived documents first
+2. Delete archived document records via the UI (bulk select in Advanced Search → Status: Archived → Delete)
+3. Original files remain in storage until manually cleaned up
+
+There is no automatic purge — document deletion is always a manual, deliberate action.
+
+---
+
+## Database Optimisation
+
+The SQLite database grows over time. For instances with 10,000+ documents, periodic optimisation improves query speed:
+
+```bash
+docker exec xr-ui python -c "
+import sqlite3
+conn = sqlite3.connect('/data/xr_docs.db')
+conn.execute('VACUUM')
+conn.execute('ANALYZE')
+conn.close()
+print('Done')
+"
+```
+
+Run this during a quiet period — it takes 30–120 seconds on a large database and locks writes during the operation.
+
+---
+
+## Scaling to Higher Volumes
+
+If your document volume is growing beyond what a single RTX 4090 can handle comfortably:
+
+| Upgrade path | Effect |
+|-------------|--------|
+| RTX 5090 (32 GB VRAM) | ~20% faster inference, more headroom for larger future models |
+| Faster NVMe storage | Reduces cold-start model load time from 3 min to ~90 seconds |
+| More RAM (64 GB → 128 GB) | Helps when storing very large document batches in memory before processing |
+| Multi-GPU (experimental) | Not supported in the default configuration — contact support |
+
+The processing bottleneck for RecordEngine is almost always GPU inference speed, not CPU, RAM, or storage. If you're saturating your GPU, upgrading the GPU has the most impact.

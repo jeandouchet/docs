@@ -1,0 +1,189 @@
+---
+title: "Your First Document"
+sidebarTitle: "Your First Document"
+description: "Upload a document, watch the AI extract structured data, and walk through the full review and approval workflow."
+---
+
+This guide walks you through the complete RecordEngine workflow from first upload to approved document. It takes about 5 minutes — plus the time the AI needs to process the file.
+
+If you haven't installed RecordEngine yet, start with the [Installation guide](/getting-started/installation).
+
+---
+
+## What You'll Do
+
+1. Create a contact to organise the document under
+2. Upload an invoice (or any document you have handy)
+3. Watch the AI extract the data
+4. Review and correct the extracted fields
+5. Approve the document
+
+---
+
+## Step 1 — Create a Contact
+
+Documents in RecordEngine are always organised under a **Contact** — a client, vendor, or any entity whose documents you manage.
+
+1. Click **Contacts** in the left sidebar
+2. Click **+ New Contact**
+3. Fill in a name — for this walkthrough, use something like *"Test Vendor"*
+4. Leave the other fields blank for now — you can fill them in later
+5. Click **Save**
+
+Two folders are created automatically: **Documents** and **Review**.
+
+<img
+  src="/images/getting-started/create-contact.png"
+  alt="Creating a new contact"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: New contact form with "Test Vendor" filled in */}
+
+---
+
+## Step 2 — Upload a Document
+
+1. Click **Upload** in the left sidebar
+2. Drag your file onto the upload zone, or click **Browse** to select it
+
+   *No invoice handy? Use any PDF — a utility bill, a receipt, even a page from a manual. The AI will extract whatever structured data it can find.*
+
+3. Set **Contact** to the contact you just created
+4. Set **Folder** to **Documents**
+5. Set **Extraction Profile** to **Standard Invoice** (if you're uploading an invoice) or **Default** for anything else
+6. Click **Upload**
+
+<img
+  src="/images/getting-started/upload-form.png"
+  alt="Upload form with file selected and contact assigned"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Upload form with a PDF file selected, Test Vendor contact, Documents folder, Standard Invoice profile */}
+
+The document appears in the list immediately with **New** status. Within a few seconds it will move to **Processing** as the AI gets to work.
+
+---
+
+## Step 3 — Wait for Processing
+
+The AI is now reading your document. For a single-page invoice this typically takes **15–30 seconds**.
+
+You can watch the status change in the document list — it will go from **New** → **Processing** → **Needs Review**.
+
+<Info>
+  If this is the first document processed since the server started, it may take 2–5 minutes for the AI model to load into GPU memory. Every subsequent document in that session will be much faster.
+</Info>
+
+---
+
+## Step 4 — Review the Extracted Data
+
+Once the status shows **Needs Review**, click the document to open the workspace.
+
+The workspace has three panels:
+
+<img
+  src="/images/getting-started/workspace-3-panel.png"
+  alt="The three-panel workspace"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Full three-panel workspace with a document open — left panel showing file preview, centre showing extracted fields and summary, right showing status/actions */}
+
+**Left panel — Document preview**
+The original file, exactly as it was uploaded. Nothing has been changed or modified.
+
+**Centre panel — Extracted data**
+This is where the AI's work appears:
+- **AI Summary** — a plain-language summary of the document
+- **Confidence Score** — how confident the AI was (colour-coded: green = high, red = low)
+- **Extracted Fields** — the specific values pulled from the document (vendor, date, amounts, etc.)
+- **Line Items** — individual table rows if the document has them
+
+**Right panel — Actions**
+Status controls, notes, version history, and CRM links.
+
+---
+
+## Step 5 — Check the Confidence Score
+
+The confidence score tells you how well the AI understood the document.
+
+| Score | Label | What it means |
+|-------|-------|--------------|
+| 90–100 | 🟢 High | All fields found, values look correct |
+| 70–89 | 🔵 Good | Most fields found, minor gaps |
+| 50–69 | 🟡 Low | Several fields missing or uncertain |
+| 0–49 | 🔴 Poor | Significant extraction problems |
+
+Below the score, read the **Confidence Reasoning** — the AI explains exactly what it found and what it wasn't sure about. This tells you precisely what to check.
+
+---
+
+## Step 6 — Correct Any Fields
+
+Click on any extracted field value to edit it directly. This is how you handle the cases where the AI got something slightly wrong — correct it here, and the corrected value is what gets used downstream.
+
+Common corrections:
+- **Date format** — AI extracted `15/11/2025` but your system needs `2025-11-15`
+- **Vendor name** — AI extracted a short version; correct it to match your accounting system exactly
+- **Missing field** — AI left a field blank; type the value in manually
+
+Every edit is recorded in the Audit Log with the before and after values.
+
+---
+
+## Step 7 — Approve the Document
+
+Once you're satisfied the extracted data is correct, approve the document:
+
+1. In the right panel, click **Approve**
+2. Status changes to **Approved** ✅
+3. The document is now locked — extracted fields cannot be edited
+
+<img
+  src="/images/getting-started/document-approved.png"
+  alt="Document showing Approved status"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Document list view with one document showing the green "Approved" status badge */}
+
+---
+
+## What Happens Next
+
+From **Approved**, you can:
+
+- **Export** — click **Webhook Export** to trigger the outbound webhook and push the extracted data to an external system (QuickBooks, Xero, Salesforce, etc.)
+- **Archive** — move the document to long-term storage, removing it from the active queue
+- **Download** — retrieve the original file at any time
+
+---
+
+## You're Done
+
+You've just completed the full RecordEngine document lifecycle:
+
+✅ Contact created  
+✅ Document uploaded  
+✅ AI extracted structured data  
+✅ Data reviewed and corrected  
+✅ Document approved  
+
+---
+
+## What to Explore Next
+
+<CardGroup cols={2}>
+  <Card title="Extraction Profiles" icon="sliders" href="/user-guide/extraction-profiles">
+    Customise exactly which fields the AI extracts — or use the built-in profiles for Chinese documents, meeting notes, and more.
+  </Card>
+  <Card title="Rules Engine" icon="bolt" href="/user-guide/rules-engine">
+    Automate repetitive actions — auto-approve high-confidence documents, flag exceptions, and trigger webhooks automatically.
+  </Card>
+  <Card title="AI Chat" icon="comments" href="/user-guide/ai-chat">
+    Ask questions about any document in plain language — or query across your entire document archive.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/overview">
+    Connect RecordEngine to your accounting software or CRM to push extracted data automatically.
+  </Card>
+</CardGroup>

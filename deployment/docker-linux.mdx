@@ -1,0 +1,236 @@
+---
+title: "Deploying on Linux with Docker"
+sidebarTitle: "Docker / Linux"
+description: "Complete deployment guide for RecordEngine on a Linux server — GPU setup, Docker Compose, SSL, and first-run configuration."
+---
+
+This guide covers deploying RecordEngine on a bare Linux server. The recommended deployment uses Ubuntu 22.04 or 24.04 with an NVIDIA GPU (RTX 4090 or RTX 5090 for on-premise hardware, A10G for cloud).
+
+---
+
+## Prerequisites
+
+Before starting, ensure the following are installed and working on your server:
+
+| Requirement | Version | Notes |
+|------------|---------|-------|
+| Ubuntu | 22.04 or 24.04 | Other Debian-based distros work but are untested |
+| Docker Engine | 24.0+ | Install via Docker's official repo — not apt default |
+| Docker Compose | v2.20+ | Included with modern Docker Engine |
+| NVIDIA GPU Driver | 525+ | Run `nvidia-smi` to verify |
+| NVIDIA Container Toolkit | Latest | Allows Docker to access the GPU |
+| Git | Any | For pulling the codebase |
+
+### Install NVIDIA Container Toolkit
+
+```bash
+# Add NVIDIA container toolkit repo
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+Verify:
+```bash
+docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+```
+
+---
+
+## Installation
+
+### 1 — Clone the repository
+
+```bash
+sudo mkdir -p /opt/xr
+sudo chown $USER:$USER /opt/xr
+cd /opt/xr
+git clone https://github.com/YOUR-ORG/xr-platform.git .
+```
+
+### 2 — Create environment configuration
+
+```bash
+cp cloud/.env.example cloud/.env
+nano cloud/.env
+```
+
+Set the required values:
+
+```env
+# Instance identity
+INSTANCE_NAME=My Company RecordEngine
+SERVER_URL=https://your-domain.com
+
+# Security — generate a strong random string for each
+SECRET_KEY=your-secret-key-here
+API_TOKEN=your-api-token-here
+
+# AI models
+CHAT_MODEL=qwen3.5:9b
+STRUCTURED_MODEL=qwen3.5:9b
+SUMMARY_MODEL=qwen3.5:9b
+VISION_MODEL=qwen3.5:9b
+OLLAMA_KEEP_ALIVE=-1
+```
+
+<Warning>
+  Use a strong, randomly generated value for `SECRET_KEY` and `API_TOKEN`. These control access to your instance. You can generate them with `openssl rand -hex 32`.
+</Warning>
+
+### 3 — Start the containers
+
+```bash
+cd /opt/xr/cloud
+docker compose up -d
+```
+
+This pulls the Docker images and starts four containers: `xr-ui`, `xr-watcher`, `xr-api`, and `ollama`.
+
+### 4 — Pull the AI model
+
+```bash
+docker exec ollama ollama pull qwen3.5:9b
+```
+
+This downloads the AI model (~6.6 GB) into the `ollama-data` volume. Run a warmup prompt so the model loads into GPU memory before the first real document arrives:
+
+```bash
+docker exec ollama ollama run qwen3.5:9b "Hello" --nowordwrap
+```
+
+### 5 — Verify containers are running
+
+```bash
+docker ps
+```
+
+All four containers should show `Up`. Access the UI at `http://YOUR-SERVER-IP:8501`.
+
+---
+
+## First-Run Setup
+
+On first access, RecordEngine runs a setup wizard:
+
+1. **Create the Admin account** — set username and password for the first admin user
+2. **Instance name** — displayed in the UI header
+3. **Done** — you're redirected to the dashboard
+
+<Info>
+  There is no default password. The setup wizard only runs once — on first access after a fresh installation. If you need to reset the admin account, see [Troubleshooting](/troubleshooting/common-issues).
+</Info>
+
+---
+
+## Configure SSL (Recommended)
+
+RecordEngine should be served over HTTPS in production. The recommended approach uses Nginx as a reverse proxy with Let's Encrypt for SSL.
+
+### Install Nginx and Certbot
+
+```bash
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+```
+
+### Create an Nginx site configuration
+
+```nginx
+# /etc/nginx/sites-available/recordengine
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 120;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8510/;
+        proxy_set_header Host $host;
+        proxy_read_timeout 120;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/recordengine /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Issue the SSL certificate
+
+```bash
+sudo certbot --nginx -d your-domain.com
+```
+
+Certbot modifies the Nginx config automatically and sets up auto-renewal.
+
+---
+
+## Install the `xr` Management Command
+
+The `xr` command is a convenience wrapper for common operations:
+
+```bash
+sudo cp /opt/xr/scripts/xr /usr/local/bin/xr
+sudo chmod +x /usr/local/bin/xr
+```
+
+Available commands:
+
+| Command | What it does |
+|---------|-------------|
+| `xr status` | Show container status |
+| `xr start` | Start all containers |
+| `xr stop` | Stop all containers |
+| `xr restart` | Restart all containers |
+| `xr update` | Pull latest code from git and restart |
+| `xr backup` | Create a backup ZIP |
+| `xr logs` | Tail live logs from all containers |
+| `xr test` | Run the test suite (80/80 baseline) |
+
+---
+
+## Verify the Deployment
+
+```bash
+# All containers running
+xr status
+
+# UI accessible
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8501
+
+# API accessible
+curl -s http://localhost:8510/api/health
+
+# Run full test suite
+xr test
+```
+
+Expected: all 80 tests pass.
+
+---
+
+## Firewall Configuration
+
+Open only the ports you need:
+
+```bash
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP (redirect to HTTPS)
+sudo ufw allow 443/tcp   # HTTPS
+sudo ufw enable
+```
+
+Do **not** expose ports 8501, 8510, or 11434 directly — these are proxied through Nginx.

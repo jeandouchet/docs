@@ -1,0 +1,113 @@
+---
+title: "HubSpot Integration"
+sidebarTitle: "HubSpot"
+description: "Link RecordEngine documents to HubSpot contacts, companies, and deals — and push extracted data back to HubSpot automatically."
+---
+
+The HubSpot integration connects RecordEngine's document processing pipeline to your HubSpot CRM. Documents processed in RecordEngine can be linked to HubSpot contacts, companies, or deals — and extracted data like invoice totals, vendor names, and dates can be pushed back to HubSpot as deal or company properties automatically.
+
+---
+
+## Integration Architecture
+
+RecordEngine connects to HubSpot through two complementary flows:
+
+**Inbound (HubSpot → RecordEngine):** A document is attached to a HubSpot deal or contact. Your automation platform detects the attachment, downloads the file, and uploads it to RecordEngine with the HubSpot record ID stored as an `external_ref`. RecordEngine processes the document and stores the CRM correlation.
+
+**Outbound (RecordEngine → HubSpot):** When a document reaches Export status in RecordEngine, the outbound webhook fires. Your automation platform receives the structured extracted data and updates the linked HubSpot deal or contact properties with the values — invoice total, document date, vendor, and so on.
+
+---
+
+## Step 1 — Connect HubSpot in Your Automation Platform
+
+In your automation platform, add a HubSpot connection using your HubSpot account credentials. You'll need:
+
+- A HubSpot account (any tier — the API is available on all plans)
+- Permission to create Private Apps in HubSpot, or Admin access to authorise an OAuth connection
+
+---
+
+## Step 2 — Upload Documents with HubSpot Record References
+
+When uploading a document to RecordEngine that came from a HubSpot deal or contact, include the HubSpot record ID in the `external_refs` field:
+
+```json
+{
+  "hubspot": {
+    "record_id": "12345678",
+    "record_type": "deal",
+    "record_url": "https://app.hubspot.com/contacts/YOUR-PORTAL-ID/deal/12345678"
+  }
+}
+```
+
+Pass this as a JSON string in the `external_refs` parameter of the [Documents Upload API](/api-reference/documents).
+
+RecordEngine stores the reference alongside the document. It's returned in every subsequent API response and in the outbound webhook payload — so your automation always knows which HubSpot record a document belongs to.
+
+---
+
+## Step 3 — Build the Outbound Automation Scenario
+
+**Trigger:** Webhook (paste the webhook URL into RecordEngine Settings → Document Webhook URL)
+
+**Condition:** Check that `external_refs.hubspot` is present — to handle cases where not all documents have a linked HubSpot record
+
+**Action — Update HubSpot Deal/Contact:**
+
+Map extracted fields from the webhook payload to HubSpot properties:
+
+| RecordEngine field | HubSpot property |
+|-------------------|-----------------|
+| `extracted_fields.total_amount` | Invoice Amount (custom deal property) |
+| `extracted_fields.invoice_date` | Invoice Date (custom deal property) |
+| `extracted_fields.vendor` | Vendor Name (custom deal property) |
+| `extracted_fields.invoice_number` | Invoice Reference (custom deal property) |
+| `confidence_score` | RE Confidence Score (custom property) |
+| `doc_url` | RecordEngine Link (custom property) |
+
+Use the `record_id` from `external_refs.hubspot` as the deal/contact ID to update.
+
+<img
+  src="/images/integrations/automation-scenario-hubspot.png"
+  alt="Automation scenario: RecordEngine webhook to HubSpot deal update"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario showing Webhook trigger → HubSpot Update Deal module with field mapping */}
+
+---
+
+## Step 4 — Create Custom HubSpot Properties
+
+Before the automation can write to HubSpot, create the custom deal or contact properties to receive the data:
+
+1. In HubSpot, go to **Settings → Properties**
+2. Select **Deal properties** (or Contact properties)
+3. Click **Create property**
+4. Create each property from the table above — use Number type for amounts, Date for dates, Single-line text for everything else
+
+---
+
+## Step 5 — Attach the RecordEngine Document Link in HubSpot
+
+The `doc_url` field in the webhook payload is a deep-link URL that opens the document directly in the RecordEngine UI. Store this in a HubSpot property so your team can jump from a HubSpot deal to the source document in one click.
+
+---
+
+## Optional — Note on the HubSpot Timeline
+
+For a richer integration, add a HubSpot Timeline Event when a document is processed. This creates a visible activity entry on the deal or contact record showing when a document was approved — giving your sales or account team full visibility into the document lifecycle without leaving HubSpot.
+
+Configure this as an additional action in your outbound scenario using the HubSpot **Create Timeline Event** module.
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| HubSpot deal not updating | Confirm the `record_id` in `external_refs` matches an actual HubSpot deal ID. Check your automation execution log for the exact error from the HubSpot API. |
+| Custom properties not visible | Ensure the properties were created under the correct object type (Deal vs Contact) and that the HubSpot connection has the `crm.objects.deals.write` scope. |
+| Webhook not firing | Confirm the document reached Export status in RecordEngine. The webhook only fires on Export — not on Approved. |
+
+For more help see [Integration Troubleshooting](/troubleshooting/integration-issues).

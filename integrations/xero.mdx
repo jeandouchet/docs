@@ -1,0 +1,178 @@
+---
+title: "Xero Integration"
+sidebarTitle: "Xero"
+description: "Automatically create Bills and invoices in Xero from RecordEngine's extracted document data."
+---
+
+The Xero integration pushes structured data extracted from invoices and receipts directly into Xero as Bills, eliminating manual data entry. Once set up, every invoice approved in RecordEngine appears in Xero within seconds — with vendor, date, line items, and amounts already populated.
+
+---
+
+## How It Works
+
+<Steps>
+  <Step title="Document is processed in RecordEngine">
+    An invoice is uploaded and processed. The AI extracts vendor name, invoice date, due date, line items, amounts, and tax.
+  </Step>
+  <Step title="Document is exported">
+    When the document reaches **Export** status, RecordEngine fires the outbound Document Webhook with the full structured payload.
+  </Step>
+  <Step title="Automation creates the Bill in Xero">
+    Your automation platform receives the webhook, maps the fields to Xero's Bill format, and creates the draft Bill via the Xero API. The Bill appears in Xero's **Awaiting Payment** or **Draft** queue ready for payment.
+  </Step>
+</Steps>
+
+---
+
+## What Gets Created in Xero
+
+RecordEngine's Standard Invoice profile maps directly to Xero Bill fields:
+
+| RecordEngine Field | Xero Bill Field |
+|-------------------|----------------|
+| `vendor` | Contact (matched by name) |
+| `invoice_date` | Date |
+| `due_date` | Due Date |
+| `invoice_number` | Reference |
+| `currency` | Currency |
+| `total_amount` | Total |
+| Line item — description | Description |
+| Line item — quantity | Quantity |
+| Line item — unit_price | Unit Amount |
+| Line item — amount | Line Amount |
+
+<Info>
+  Xero matches the vendor by contact name. Make sure the vendor name extracted by RecordEngine matches your Xero contact name exactly — or add a lookup step in your automation to find the Xero contact ID first.
+</Info>
+
+---
+
+## Step 1 — Configure the Webhook in RecordEngine
+
+1. Go to **Settings → Webhooks**
+2. Enter your automation platform's webhook URL in **Document Webhook URL**
+3. Save
+
+---
+
+## Step 2 — Connect Xero in Your Automation Platform
+
+Connect your Xero organisation using the native Xero connector. You'll need:
+
+- Xero advisor or standard user access on the organisation
+- Permission to authorise the OAuth connection
+
+---
+
+## Step 3 — Build the Automation Scenario
+
+**Trigger:** Webhook — Custom Webhook
+
+**Action 1:** Parse the incoming webhook payload
+
+**Action 2:** Xero — Create/Update Bill
+
+Map fields from the payload to the Xero Bill:
+
+```
+Contact Name    ← extracted_fields.vendor
+Date            ← extracted_fields.invoice_date
+Due Date        ← extracted_fields.due_date
+Reference       ← extracted_fields.invoice_number
+Status          ← "DRAFT" (or "AUTHORISED" if you want Bills auto-approved)
+Currency Code   ← extracted_fields.currency
+Line Items      ← line_items array (iterate)
+```
+
+<img
+  src="/images/integrations/automation-scenario-xero.png"
+  alt="Automation scenario: RecordEngine webhook to Xero Bill creation"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Automation scenario showing Webhook trigger → Xero Create Bill module with field mapping visible */}
+
+---
+
+## Step 4 — Handle Line Items
+
+The webhook payload includes line items as an array. Use an iterator in your automation to loop through `line_items` and create a Xero line item for each:
+
+```json
+{
+  "line_items": [
+    {
+      "description": "Consulting services — October",
+      "quantity": 10,
+      "unit_price": 500.00,
+      "amount": 5000.00
+    }
+  ]
+}
+```
+
+Map each object to a Xero LineItem: `Description`, `Quantity`, `UnitAmount`, `LineAmount`.
+
+---
+
+## Step 5 — Handle Tax
+
+Xero requires explicit tax treatment on each line item. Add a condition in your automation:
+
+- If `extracted_fields.tax` is present and non-zero, set `TaxType` to the appropriate Xero tax rate code for your organisation (e.g. `INPUT2` for 20% UK input VAT, or `NONE` for zero-rated)
+- If no tax, set `TaxType = "NONE"`
+
+Your Xero tax rate codes are visible in **Xero → Accounting → Tax Rates**.
+
+---
+
+## Step 6 — Test the Integration
+
+1. Upload a test invoice and process it with the Standard Invoice profile
+2. Verify all fields extract correctly — pay attention to vendor name, amounts, and line items
+3. Approve and Export the document
+4. Check your automation execution log — the webhook should appear within seconds
+5. Open Xero — the Bill should appear in your Draft or Awaiting Payment queue
+
+---
+
+## Preventing Duplicates
+
+Add a duplicate-check step in your automation before creating the Xero Bill:
+
+1. Search Xero for existing Bills with the same `Reference` (invoice number)
+2. If found, skip creation or update the existing Bill instead
+3. If not found, proceed with creation
+
+This prevents double-entries if a document is accidentally exported twice.
+
+---
+
+## Alternative — CSV Import
+
+If you prefer a manual approach, export a CSV from RecordEngine and import into Xero:
+
+**Export from RecordEngine:**
+1. Select the documents in the document list
+2. Click **CSV Export**
+
+**Import into Xero:**
+1. In Xero go to **Accounting → Bills to Pay**
+2. Click **Import** and follow Xero's CSV import wizard
+3. Map the RecordEngine CSV columns to Xero fields
+
+<Tip>
+  The webhook approach creates Bills in real time as documents are approved. The CSV import approach suits teams who prefer to batch-process at end-of-week or end-of-month.
+</Tip>
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Contact not found in Xero | Vendor name doesn't match Xero contact exactly. Add a Xero search step in your automation to find the contact by name first. |
+| Invalid tax type error | Your Xero organisation uses different tax type codes. Check Xero → Accounting → Tax Rates for your valid codes. |
+| Duplicate Bills appearing | Add a Reference search step before creation to check if the invoice number already exists. |
+| Line items not appearing | Check that `line_items` in the webhook payload is non-empty. If the invoice has no table, line items won't be extracted. |
+
+For more help see [Integration Troubleshooting](/troubleshooting/integration-issues).

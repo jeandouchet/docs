@@ -1,0 +1,115 @@
+---
+title: "Document Versioning"
+sidebarTitle: "Document Versioning"
+description: "How RecordEngine handles multiple versions of the same document — replacements, revisions, and version history."
+---
+
+When a document is re-issued, corrected, or replaced, RecordEngine lets you upload the new version while keeping the full history of previous versions. You always have access to every iteration of a document, with a clear record of what changed and when.
+
+---
+
+## How Versions Work
+
+A **version** is a new file linked to an existing document record. The document record — its contact, folder, extracted fields, status history, and audit log — is shared across all versions. Each version has its own file and its own AI extraction results.
+
+The most recently uploaded version is always the **active version** — the one shown in the workspace and used for extraction, export, and webhooks. Previous versions are accessible at any time from the version history panel.
+
+---
+
+## Uploading a New Version
+
+### Via the Workspace
+
+1. Open the document
+2. In the right panel, click **Upload New Version**
+3. Select the replacement file
+4. Click **Upload**
+
+RecordEngine runs AI extraction on the new file automatically. The new extracted fields replace the previous ones on the active document record. The previous version's file and extraction data are preserved in version history.
+
+### Via Web Upload (Duplicate Detection)
+
+If you upload a file with the same name as an existing document in the same folder, RecordEngine detects the duplicate and prompts you:
+
+- **Upload as a new version** — links the file to the existing document as the next version
+- **Upload as a separate document** — creates an independent new document record
+
+Choose **Upload as a new version** when the new file is a replacement or revision of the existing one.
+
+---
+
+## Viewing Version History
+
+1. Open the document
+2. In the right panel, click **Version History**
+3. A list of all versions appears — each showing:
+   - Version number (v1, v2, v3…)
+   - Upload date and time
+   - Uploaded by (user name)
+   - File name
+
+Click any previous version to view its original file and the extraction results from that version.
+
+<img
+  src="/images/user-guide/version-history-panel.png"
+  alt="Version history panel showing three versions of a document"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Right panel showing Version History section with 2–3 versions listed, each with date and uploader */}
+
+---
+
+## Comparing Versions
+
+When viewing a previous version, the extracted fields shown are those from that specific version — not the current active version. This lets you see exactly what changed between the vendor's original invoice and a corrected reissue.
+
+---
+
+## Restoring a Previous Version
+
+To make an older version the active one:
+
+1. Open the document → **Version History**
+2. Click the version you want to restore
+3. Click **Make Active**
+
+The selected version becomes the active version. Its file and extracted fields replace the current active version. The previously active version is moved into history — nothing is deleted.
+
+<Warning>
+  Restoring a version re-runs AI extraction on the restored file. Any manual field corrections made to the previous active version are replaced by the AI's extraction of the restored file. Review extracted fields carefully after a restore.
+</Warning>
+
+---
+
+## Downloading a Specific Version
+
+You can download any version of a document at any time:
+
+1. Open the document → **Version History**
+2. Click the version you want
+3. Click **Download**
+
+The original file for that version is downloaded exactly as it was uploaded — unmodified.
+
+---
+
+## Versioning and Status
+
+Uploading a new version **resets the document status to Needs Review**. This is intentional — the new file needs to be reviewed and its extraction verified before it can be approved again.
+
+The previous approval is preserved in the audit log with a note that a new version was uploaded, so you have a clear record that the document was previously approved before the revision arrived.
+
+---
+
+## Versioning via the API
+
+New versions can be uploaded programmatically. Pass the existing document's `id` in the upload request:
+
+```bash
+curl -X POST https://YOUR-INSTANCE/api/documents/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@invoice-corrected.pdf" \
+  -F "document_id=847"
+```
+
+When `document_id` is provided, the uploaded file is added as a new version of that document rather than creating a new document record.

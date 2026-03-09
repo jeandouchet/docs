@@ -1,0 +1,136 @@
+---
+title: "Exporting Data"
+sidebarTitle: "Exporting Data"
+description: "How to get data out of RecordEngine — webhook export, CSV, PDF reports, and the original file."
+---
+
+RecordEngine offers four ways to get your data out, each suited to a different use case — automated integration pipelines, spreadsheet analysis, compliance reports, and original file retrieval.
+
+---
+
+## Export Methods at a Glance
+
+| Method | Best for | Output |
+|--------|----------|--------|
+| **Webhook Export** | Real-time integration with accounting/CRM | JSON payload to external system |
+| **CSV Export** | Spreadsheet analysis, bulk data review | `.csv` file with all extracted fields |
+| **PDF Report** | Compliance submissions, audit packages | Formatted `.pdf` document |
+| **Download Original** | File archive, sending to a third party | Original uploaded file, unmodified |
+
+---
+
+## Webhook Export
+
+**Webhook Export** is the primary integration method — it pushes the full structured payload from a processed document directly to an external system (QuickBooks, Xero, Salesforce, your ERP, etc.).
+
+### How to export a single document
+
+1. Open the document and ensure it has **Approved** status
+2. In the right panel, click **Webhook Export**
+3. Status changes to **Export**
+4. The outbound webhook fires within seconds, delivering the full JSON payload to the URL configured in **Settings → Webhooks**
+
+### Batch webhook export
+
+1. In the document list, select multiple Approved documents
+2. Click **Batch Export** in the batch action bar
+3. All selected documents are set to Export status simultaneously, each triggering its own webhook delivery
+
+See [Outbound Webhooks](/api-reference/webhooks) for the full payload schema and authentication details.
+
+<Tip>
+  If no webhook URL is configured, setting a document to Export status has no effect beyond the status change. Configure your webhook URL in Settings before exporting.
+</Tip>
+
+---
+
+## CSV Export
+
+CSV export gives you a spreadsheet containing the extracted field values for all selected documents — one row per document, one column per field.
+
+### Exporting a selection
+
+1. In the document list, select the documents you want to export
+2. Click **CSV Export** in the batch action bar
+3. A `.csv` file downloads to your browser
+
+### What's included in the CSV
+
+| Column | Content |
+|--------|---------|
+| `id` | RecordEngine document ID |
+| `filename` | Original filename |
+| `status` | Current status |
+| `contact` | Contact name |
+| `folder` | Folder name |
+| `confidence_score` | AI confidence (0–100) |
+| `created_at` | Upload date |
+| *(profile fields)* | One column per extracted field in the profile |
+
+The extraction profile field columns vary depending on which profile was used for each document. If you export documents from multiple profiles, each profile's fields appear as separate columns.
+
+### Full database export
+
+To export all documents across all contacts and folders, go to **Advanced Search**, clear all filters, select all results, and click **CSV Export**.
+
+---
+
+## PDF Report
+
+PDF report export produces a formatted document suitable for compliance submissions, client reports, or audit packages.
+
+1. In the document list, select the documents to include
+2. Click **Export PDF**
+3. A formatted `.pdf` file downloads
+
+The PDF includes:
+- Your RecordEngine instance name and export timestamp
+- One section per document showing: filename, status, confidence score, all extracted fields, and AI summary
+- Total document count and summary statistics at the top
+
+<Info>
+  PDF report export is separate from the **Audit Log PDF** export. The document PDF report shows extracted field data. The Audit Log PDF shows the action history. Both are useful for compliance — they cover different aspects of the record.
+</Info>
+
+---
+
+## Downloading the Original File
+
+The original uploaded file is always stored unmodified in RecordEngine. You can download it at any time:
+
+1. Open the document
+2. In the right panel, click **Download Original**
+3. The file downloads exactly as it was uploaded — no watermarks, no modifications
+
+Original files are also accessible for all past versions — see [Document Versioning](/user-guide/document-versioning).
+
+---
+
+## Exporting via the API
+
+All export operations are available programmatically:
+
+```bash
+# Get extracted data as JSON
+curl "https://YOUR-INSTANCE/api/documents/847" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Trigger webhook export (set status to Export)
+curl -X PATCH "https://YOUR-INSTANCE/api/documents/847/status" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "Export"}'
+```
+
+See the [Documents API](/api-reference/documents) for the full reference.
+
+---
+
+## Accounting Software Exports
+
+For direct export to accounting software, RecordEngine uses the webhook + automation platform approach rather than native file formats. This gives you more control over field mapping and handles edge cases (missing vendors, tax codes, duplicate detection) than a raw file import would.
+
+See the integration guides for step-by-step instructions:
+
+- [QuickBooks Integration](/integrations/quickbooks)
+- [Xero Integration](/integrations/xero)

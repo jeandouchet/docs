@@ -1,0 +1,207 @@
+---
+title: "General Troubleshooting"
+sidebarTitle: "General"
+description: "Diagnose and fix the most common RecordEngine issues — containers, AI processing, and the UI."
+---
+
+This page covers the most common issues you may encounter when running RecordEngine and how to resolve them.
+
+---
+
+## Checking System Health First
+
+Before diving into specific issues, run a quick health check:
+
+```bash
+# Check all containers are running
+xr status
+
+# Check recent logs for errors
+xr logs
+```
+
+A healthy system shows all four containers running: `xr-ui`, `xr-watcher`, `xr-api`, `ollama`.
+
+---
+
+## Containers
+
+### A container keeps restarting
+
+```bash
+# See which container is restarting
+docker ps -a
+
+# Check its logs for the error
+docker logs xr-ui --tail 50
+docker logs xr-watcher --tail 50
+docker logs xr-api --tail 50
+docker logs ollama --tail 50
+```
+
+Common causes:
+- **Port conflict:** Another process is using port 8501 or 8510. Find it with `sudo ss -tlnp | grep 8501` and stop it.
+- **Volume mount error:** The `app/`, `data/`, or `storage/` directories don't exist or have wrong permissions. Check with `ls -la /opt/xr/`.
+- **Out of memory:** The server is running out of RAM. Check with `free -h`. Consider closing other applications or upgrading RAM.
+
+### The UI shows "Please wait..." indefinitely
+
+The Streamlit UI container is starting up. This is normal for the first 15–30 seconds after `docker compose up`. If it persists beyond 2 minutes:
+
+```bash
+docker logs xr-ui --tail 100
+```
+
+Look for Python import errors or database connection failures.
+
+### Containers start but the site is unreachable
+
+Check Nginx:
+```bash
+sudo nginx -t          # Test config for errors
+sudo systemctl status nginx
+sudo journalctl -u nginx --tail 50
+```
+
+Also verify the container ports are bound:
+```bash
+docker ps
+# xr-ui should show 0.0.0.0:8501->8501/tcp
+# xr-api should show 0.0.0.0:8510->8510/tcp
+```
+
+---
+
+## AI Processing
+
+### Documents stay in "Processing" status indefinitely
+
+The AI worker is stuck or the model isn't loaded. Check:
+
+```bash
+# Is the watcher container running?
+docker ps | grep xr-watcher
+
+# Check watcher logs for errors
+docker logs xr-watcher --tail 100
+
+# Is Ollama responding?
+docker exec ollama ollama list
+# Should show qwen3.5:9b in the list
+```
+
+Common causes:
+- **Model not pulled:** Run `docker exec ollama ollama pull qwen3.5:9b`
+- **Ollama out of VRAM:** Check GPU memory with `nvidia-smi` — if VRAM is full, another process may be using the GPU
+- **Watcher crashed:** Restart with `docker restart xr-watcher`
+
+### First document takes more than 10 minutes
+
+This is normal on a cold start. The AI model (6.6 GB) needs to load into GPU VRAM the first time it's called. Subsequent documents process much faster. Run a warmup document after any server restart:
+
+```bash
+docker exec ollama ollama run qwen3.5:9b "Ready" --keepalive -1
+```
+
+### AI extracts wrong fields
+
+This is usually a profile mismatch — the extraction profile doesn't match the document type. Check:
+1. Is the correct profile selected for this document type? (Standard Invoice for invoices, Chinese Fapiao for fapiao, etc.)
+2. Are the field labels in your custom profile clear and descriptive?
+3. Is the document quality sufficient — clear text, good scan resolution?
+
+See [AI Extraction](/user-guide/ai-extraction) for guidance on improving extraction accuracy.
+
+### Confidence scores are consistently low
+
+Low confidence across many documents usually indicates:
+- Wrong extraction profile for the document type — create a custom profile that matches your specific format
+- Poor document image quality — rescan at 300 DPI minimum
+- Unusual document layout — add field descriptions in your profile to guide the AI
+
+---
+
+## UI Issues
+
+### Chat returns empty responses
+
+The AI model is likely running with `think: True`, which consumes all output tokens on reasoning. This is a configuration issue. Check `docker-compose.yml` for the model configuration and confirm `think: False` is set.
+
+Alternatively, the model may have returned an empty response due to a timeout. Check:
+```bash
+docker logs xr-ui --tail 50
+```
+
+### PDF preview is broken / shows blank
+
+The `pdf2image` library or its dependency `poppler-utils` is not installed:
+
+```bash
+docker exec xr-ui python -c "from pdf2image import convert_from_path; print('ok')"
+```
+
+If this fails:
+```bash
+docker exec xr-ui pip install pdf2image==1.17.0 --break-system-packages
+```
+
+If that doesn't resolve it, `poppler-utils` may be missing from the container image — rebuild the image:
+```bash
+cd /opt/xr/cloud
+docker compose build ui
+docker compose up -d ui
+```
+
+### "Database is locked" errors
+
+SQLite is being written to by multiple processes simultaneously. This is usually transient — wait a few seconds and retry. If it persists:
+
+```bash
+docker restart xr-watcher
+```
+
+The watcher is the most common source of concurrent database writes.
+
+---
+
+## Authentication
+
+### Locked out of the admin account
+
+If you've forgotten the admin password and can't log in, reset it directly in the database:
+
+```bash
+# Generate a new bcrypt hash for your new password
+docker exec xr-ui python -c "
+import bcrypt
+pw = b'YOUR_NEW_PASSWORD'
+print(bcrypt.hashpw(pw, bcrypt.gensalt()).decode())
+"
+
+# Update the database
+docker exec xr-ui python -c "
+import sqlite3
+conn = sqlite3.connect('/data/xr_docs.db')
+conn.execute(\"UPDATE users SET password_hash='PASTE_HASH_HERE' WHERE username='admin'\")
+conn.commit()
+conn.close()
+print('Done')
+"
+```
+
+Replace `YOUR_NEW_PASSWORD` with your new password and `PASTE_HASH_HERE` with the hash output from the first command.
+
+---
+
+## Running the Test Suite
+
+Always run the test suite after making changes or after a troubled update:
+
+```bash
+xr test
+# Should report 80/80 passing
+```
+
+One known non-regression failure: a bcrypt long-password test that fails on all instances — this is expected and does not indicate a problem.
+
+If tests other than this one are failing, check the test output for which test is failing and consult the relevant troubleshooting section.

@@ -1,0 +1,169 @@
+---
+title: "AI Extraction"
+sidebarTitle: "AI Extraction"
+description: "How RecordEngine's AI reads your documents, extracts structured data, and how to get the best results."
+---
+
+When a document is uploaded, RecordEngine's AI reads it — seeing the page the way a human would, not just scanning raw text — and extracts structured data according to your extraction profile. Understanding how this works helps you configure profiles well and interpret results accurately.
+
+---
+
+## How the AI Reads Documents
+
+RecordEngine uses a **vision-first** approach: the AI processes the document as an image, reading layout, fonts, stamps, handwriting, tables, and mixed-language text together. This is fundamentally different from OCR-only tools that extract raw text and then try to parse it.
+
+Vision-first extraction means:
+
+- **Chinese stamps and seals** are read correctly, even when they overlap printed text
+- **Fapiao and Business Licenses** with mixed Chinese/English content extract accurately
+- **Scanned documents** work as well as native PDFs — the AI sees what the scanner saw
+- **Tables and line items** are understood as tables, not as unstructured text blobs
+- **Handwritten annotations** are read alongside printed text
+
+All processing happens on your server — no document content ever leaves your network.
+
+---
+
+## The Extraction Pipeline
+
+When a document is uploaded, it moves through these steps automatically:
+
+<Steps>
+  <Step title="File type detection">
+    RecordEngine identifies whether the file is a PDF, image, Word document, spreadsheet, audio, or text file and chooses the appropriate processing path.
+  </Step>
+  <Step title="Page rendering (PDFs)">
+    PDF pages are rendered as high-resolution images so the vision AI can process them correctly — capturing stamps, seals, and layout that text-only extraction would miss.
+  </Step>
+  <Step title="Audio transcription (audio files only)">
+    Audio files are transcribed locally using the AI before extraction runs on the transcript.
+  </Step>
+  <Step title="AI extraction">
+    The AI reads the document against your extraction profile — a structured list of fields with descriptions that tell the AI what to look for and how to interpret it.
+  </Step>
+  <Step title="Confidence scoring">
+    The AI evaluates how confident it is in its own output — checking completeness, internal consistency, and whether values look plausible for the document type.
+  </Step>
+  <Step title="AI summary generation">
+    A plain-language summary of the document is generated for quick review in the UI.
+  </Step>
+  <Step title="Rules Engine evaluation">
+    Any Rules Engine rules are evaluated against the extracted fields. Matching rules fire their actions immediately.
+  </Step>
+  <Step title="Status set to Needs Review">
+    The document is ready for human review.
+  </Step>
+</Steps>
+
+---
+
+## Extraction Profiles Drive the Output
+
+The AI extracts exactly the fields defined in your extraction profile — no more, no less. Each field has:
+
+- **A name** — becomes the key in the extracted data and the webhook payload
+- **A description** — instructions to the AI about what this field contains and how to find it
+- **A type** — text, number, date, currency, or list
+
+The description is the most important part. A field named `total_amount` with description *"The final total payable amount, after tax"* produces much better results than the same field with no description.
+
+See [Extraction Profiles](/user-guide/extraction-profiles) for a full guide on creating and editing profiles.
+
+---
+
+## Built-In Profiles
+
+RecordEngine ships with seven extraction profiles ready to use:
+
+| Profile | Best for |
+|---------|---------|
+| **Default** | General documents — generates a summary without structured field extraction |
+| **Standard Invoice** | English-language vendor invoices |
+| **Universal Invoices & Receipts** | Mixed-language invoices and receipts in any currency |
+| **Chinese Fapiao 发票** | Chinese VAT special invoices and ordinary invoices |
+| **Chinese Business License 营业执照** | Chinese Business Registration Certificates |
+| **Meeting Notes** | Meeting transcripts and minutes |
+| **Profile Drafter** | Uses AI to help you design a new custom profile |
+
+---
+
+## Reviewing and Correcting Extracted Fields
+
+After processing, every extracted field is editable in the centre panel of the workspace. If the AI made an error — extracted the wrong value, missed a field, or misread a number — correct it directly:
+
+1. Open the document
+2. Click the field value you want to correct
+3. Type the correct value
+4. Press Enter or click away
+
+Every edit is recorded in the [Audit Log](/user-guide/audit-log) with the old and new values.
+
+<img
+  src="/images/user-guide/workspace-field-editing.png"
+  alt="Editing an extracted field in the workspace"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Centre panel with an extracted field in edit mode — cursor in the field, showing a value being corrected */}
+
+---
+
+## Getting Better Extraction Results
+
+### Write descriptive field descriptions
+
+The most effective way to improve extraction quality is to write clear field descriptions. Compare:
+
+| Field name | Vague description | Better description |
+|-----------|--------------------|--------------------|
+| `vendor` | Company name | The name of the company or individual who issued this invoice. May appear in the header or footer. |
+| `total_amount` | Total | The final amount payable including all taxes and fees. Usually the largest amount on the document. |
+| `invoice_date` | Date | The date the invoice was issued, not the due date or payment date. Format: YYYY-MM-DD. |
+
+### Add example values
+
+For fields where the format varies, include an example in the description: *"The invoice reference number. Examples: INV-2025-001, REF#4421, 2025110047"*
+
+### Use the Profile Drafter
+
+Upload a sample document and ask the Profile Drafter to design a profile for you. The AI analyses the document and suggests field names and descriptions optimised for that document type.
+
+### Handle multi-page documents
+
+For long documents, the AI focuses on the most content-dense pages for extraction. If critical fields only appear on a later page (e.g. totals on the last page of a multi-page invoice), add a note in the relevant field description: *"May appear on the last page of the document."*
+
+---
+
+## Line Item Extraction
+
+When an invoice or receipt contains a table of items, RecordEngine extracts each row as a structured line item:
+
+```json
+{
+  "line_items": [
+    {
+      "description": "Consulting services — October",
+      "quantity": 10,
+      "unit_price": 1500.00,
+      "amount": 15000.00
+    }
+  ]
+}
+```
+
+Line items are visible in the document workspace below the extracted fields, and are included in the outbound webhook payload and CSV export.
+
+<Info>
+  Line item extraction works best when the table has clear column headers. If a document uses a non-standard table layout, you can improve results by adding a note to your profile: *"Extract line items from the table. Columns are: item description, quantity, unit price, total."*
+</Info>
+
+---
+
+## Reprocessing a Document
+
+If you change an extraction profile after documents have already been processed, you can reprocess existing documents with the updated profile:
+
+1. Open the document
+2. Click **Reprocess** in the action menu
+3. Confirm — the document returns to Processing status and runs through extraction again with the current profile
+
+Reprocessing overwrites the previously extracted fields. The original file is never modified.

@@ -1,0 +1,97 @@
+---
+title: "Themes & Customization"
+sidebarTitle: "Themes & Customization"
+description: "Change the visual theme of your RecordEngine interface — three built-in themes plus a full Theme Builder."
+---
+
+RecordEngine includes three professionally designed themes and a Theme Builder that lets you create a fully custom colour scheme — matching your firm's brand colours if needed.
+
+Theme changes apply immediately for all users on the instance.
+
+---
+
+## Changing the Theme
+
+1. Go to **Settings → Themes** (Admin only) or click the **Theme** option in the sidebar
+2. Select one of the three built-in themes
+3. The interface updates instantly — no restart required
+
+<img
+  src="/images/user-guide/themes-selector.png"
+  alt="Theme selector showing three built-in themes"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Theme selector page showing the three theme cards side by side */}
+
+---
+
+## Built-In Themes
+
+<CardGroup cols={3}>
+  <Card title="Midnight" icon="moon">
+    Dark background with high-contrast text. Reduces eye strain in low-light environments. Default theme for new installations.
+  </Card>
+  <Card title="Fresh Light" icon="sun">
+    Clean white background with accent colours. Familiar and comfortable for users coming from standard office software.
+  </Card>
+  <Card title="Clean Pro" icon="briefcase">
+    Neutral grey tones with a professional, enterprise feel. Well suited for client-facing demos and presentations.
+  </Card>
+</CardGroup>
+
+---
+
+## Theme Builder
+
+The Theme Builder lets you define a completely custom colour scheme — useful for matching your firm's brand identity or meeting a client's white-label requirements.
+
+### Opening the Theme Builder
+
+1. Go to **Settings → Themes**
+2. Click **Open Theme Builder**
+
+### Customisable Colour Properties
+
+| Property | What it affects |
+|----------|----------------|
+| **Primary colour** | Buttons, active states, highlights, links |
+| **Background colour** | Main page background |
+| **Secondary background** | Sidebar, panels, cards |
+| **Text colour** | Body text |
+| **Accent colour** | Badges, status indicators, chart colours |
+
+### Using the Colour Picker
+
+Click any colour swatch to open the colour picker. You can:
+- Select from the visual colour wheel
+- Enter a **hex code** directly (e.g. `#1A3A5C`) for precise brand colour matching
+- Adjust brightness and saturation with the sliders
+
+The interface previews your changes in real time as you adjust each colour.
+
+### Saving a Custom Theme
+
+1. Adjust all colour properties to your preference
+2. Click **Save Theme**
+3. Give your theme a name (e.g. *"Acme Blue"*)
+4. Click **Apply**
+
+Saved custom themes appear alongside the built-in themes in the theme selector. You can create and save multiple custom themes and switch between them.
+
+---
+
+## Resetting to a Built-In Theme
+
+To discard your custom theme and return to a built-in:
+
+1. Go to **Settings → Themes**
+2. Click any built-in theme card
+3. Click **Apply**
+
+Your custom theme definition is preserved — it is not deleted when you switch away from it. You can switch back to it at any time.
+
+---
+
+## Theme Persistence
+
+The active theme is stored server-side and applies to all users on the instance. There is no per-user theme setting — everyone sees the same theme. If individual users need different themes, this can be achieved by deploying separate RecordEngine instances (for example, one per team or department).

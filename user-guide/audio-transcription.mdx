@@ -1,0 +1,107 @@
+---
+title: "Audio Transcription"
+sidebarTitle: "Audio Transcription"
+description: "How RecordEngine transcribes meeting recordings, voice memos, and audio files — and extracts structured data from the transcript."
+---
+
+RecordEngine can process audio files — meeting recordings, voice memos, phone call recordings — transcribing them locally and then applying AI extraction to the transcript. A recorded meeting becomes structured minutes, action items, and decisions. A voice memo becomes a searchable text record.
+
+Everything runs on your own hardware. No audio is ever sent to a cloud transcription service.
+
+---
+
+## Supported Audio Formats
+
+| Format | Notes |
+|--------|-------|
+| `.mp3` | Most common — compatible with all recording apps |
+| `.wav` | Uncompressed — larger files, highest quality |
+| `.m4a` | Common on iPhone voice memos and Tencent Meeting exports |
+
+---
+
+## How It Works
+
+<Steps>
+  <Step title="Audio file is uploaded">
+    Upload the audio file the same way as any document — via the web UI, email intake, hot folder, or API. Assign it to a contact and folder, and select an extraction profile.
+  </Step>
+  <Step title="Local transcription">
+    RecordEngine transcribes the audio using a speech-to-text model running on your GPU. The transcript is generated locally — no cloud API call is made. This step takes approximately 15 seconds per minute of audio.
+  </Step>
+  <Step title="AI extraction on the transcript">
+    Once transcribed, the AI runs your selected extraction profile against the transcript text — exactly as it would for a text document. It extracts the fields you've defined and generates a summary.
+  </Step>
+  <Step title="Document appears in Needs Review">
+    The document is ready for review with the transcript visible in the centre panel, extracted fields populated, and a confidence score assigned.
+  </Step>
+</Steps>
+
+---
+
+## Recommended Extraction Profiles for Audio
+
+| Use case | Profile to use |
+|----------|---------------|
+| Team meetings and standups | **Meeting Notes** (built-in) |
+| Client calls | **Meeting Notes** or a custom profile |
+| Voice memos | **Default** |
+| Recorded interviews | Create a custom profile with fields like: participants, key topics, decisions, follow-up items |
+
+The **Meeting Notes** profile extracts: meeting title, date, attendees, agenda items, decisions, action items, and owner for each action item.
+
+---
+
+## Viewing the Transcript
+
+The full transcript is visible in the centre panel of the workspace, below the extracted fields. It is stored as plain text and is fully searchable via [Advanced Search](/user-guide/advanced-search).
+
+If you want to correct a transcription error in the extracted fields, edit the field value directly — you do not need to edit the underlying transcript.
+
+---
+
+## Processing Time
+
+Audio files take longer to process than PDFs because transcription runs before extraction:
+
+| Audio duration | Approximate processing time |
+|---------------|---------------------------|
+| 5 minutes | ~1.5 minutes |
+| 30 minutes | ~8 minutes |
+| 1 hour | ~15 minutes |
+| 2 hours | ~30 minutes |
+
+<Info>
+  Long recordings (1 hour+) may appear to be stuck in **Processing** status. They are not stuck — transcription is running in the background. Check `docker logs xr-watcher --tail 20` to see transcription progress if you're uncertain.
+</Info>
+
+---
+
+## Tips for Better Transcription
+
+| Situation | Recommendation |
+|-----------|---------------|
+| Poor transcription quality | Record in a quiet environment — background noise is the leading cause of transcription errors |
+| Names transcribed incorrectly | Edit the affected extracted fields manually — the AI corrects names in the extraction step even when the transcript is imperfect |
+| Multiple speakers confused | This is expected — the model does not perform speaker diarisation (speaker labelling) by default |
+| Non-native English speakers | The model handles accents well but accuracy varies — speak clearly and at a moderate pace |
+| Mixed language (e.g. English/Chinese) | The model handles code-switching in the same recording — Chinese sections are transcribed in Chinese |
+
+---
+
+## Audio via Email Intake
+
+Audio files can be submitted by email, just like any other document type. Attach the audio file to an email and send it to your RecordEngine intake address — the file is ingested and queued for transcription automatically.
+
+This is useful for:
+- Sales reps sending call recordings from their phone immediately after a meeting
+- Forwarding voicemails as email attachments
+- Any workflow where audio is already being emailed
+
+See [Email Intake](/user-guide/email-intake) for how to configure your intake address.
+
+---
+
+## Privacy Considerations
+
+All transcription happens on your own server. The audio file never leaves your hardware, and the transcript is stored only in your local RecordEngine database. This makes audio transcription safe for sensitive meetings — legal discussions, financial reviews, HR conversations — where cloud transcription services are not acceptable.

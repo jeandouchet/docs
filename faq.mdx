@@ -1,0 +1,93 @@
+---
+title: "Frequently Asked Questions"
+sidebarTitle: "FAQ"
+description: "Answers to the most common questions about RecordEngine."
+---
+
+<AccordionGroup>
+
+  <Accordion title="Does RecordEngine send my documents to the cloud?">
+    No. RecordEngine is a fully offline system. Documents are stored on your own server, and all AI processing runs on your local GPU. Nothing — not the document files, not the extracted data, not the AI prompts — leaves your server. This is the core design principle of RecordEngine: **Cut the Cloud. Keep the Intelligence.**
+  </Accordion>
+
+  <Accordion title="Which AI model does RecordEngine use?">
+    RecordEngine uses locally-hosted, open-source AI models that run entirely on your GPU. The specific model in use is displayed in your Settings page. The platform is model-agnostic — when better models become available, you can update without replacing the software.
+
+    We don't lead with model names in our documentation because the specific model is less important than the fact that it runs locally, on your hardware, under your control.
+  </Accordion>
+
+  <Accordion title="Can I use RecordEngine without an internet connection?">
+    Yes — once deployed, RecordEngine operates fully offline. No internet connection is required for document processing, AI extraction, or any core functionality. An internet connection is only needed to download software updates or pull new AI models, which you can do at any time that's convenient.
+  </Accordion>
+
+  <Accordion title="What file types does RecordEngine support?">
+    RecordEngine supports: PDF (text-based and scanned), JPG, PNG, DOCX, XLSX, CSV, TXT, HTML, MP3, WAV, and M4A. For a full breakdown of how each type is processed, see [How AI Extraction Works](/user-guide/ai-extraction).
+  </Accordion>
+
+  <Accordion title="How accurate is the AI extraction?">
+    Accuracy depends on document quality and which extraction profile is used. On clean, well-formatted documents (standard invoices, PDFs with clear text), extraction accuracy is typically very high. On low-quality scans or unusual document layouts, accuracy is lower.
+
+    The confidence score on every document tells you exactly how confident the AI was — use it to decide which documents need human review and which can be processed automatically. See [AI Confidence Scoring](/user-guide/confidence-scoring).
+  </Accordion>
+
+  <Accordion title="Can RecordEngine read Chinese documents?">
+    Yes. RecordEngine has native support for Chinese-language documents, including Chinese Fapiao (发票) and Business Licenses (营业执照). The platform uses vision-first extraction for these documents, which correctly handles red stamps, QR codes, and dense tabular layouts that OCR-only tools struggle with. Dedicated extraction profiles are built in for both document types.
+  </Accordion>
+
+  <Accordion title="What hardware do I need?">
+    The standard production configuration is a desktop workstation or rackmount server with an NVIDIA RTX 4090 (24 GB VRAM) and 32–64 GB RAM. The RTX 5090 (32 GB VRAM) provides more headroom for larger models and concurrent processing.
+
+    RecordEngine will not run without an NVIDIA GPU — the AI model requires CUDA. AMD and Apple Silicon GPUs are not supported.
+
+    See [System Requirements](/getting-started/system-requirements) for the full specification.
+  </Accordion>
+
+  <Accordion title="How many documents can RecordEngine process per day?">
+    Throughput depends on your GPU and document complexity. With an RTX 4090 processing standard PDF invoices, you can typically process 200–500 documents per day in continuous operation. Audio files take longer due to the transcription step. Multi-page PDFs take longer than single-page documents.
+
+    There is no artificial limit on document volume — throughput is constrained only by hardware.
+  </Accordion>
+
+  <Accordion title="Can multiple users access RecordEngine at the same time?">
+    Yes. RecordEngine supports multiple user accounts with role-based access control (Admin and User roles). Multiple users can access the system simultaneously — reviewing documents, using AI Chat, and managing contacts.
+
+    See [Settings — User Management](/user-guide/settings#user-management) for how to create user accounts.
+  </Accordion>
+
+  <Accordion title="Is there a limit on how many documents I can store?">
+    No per-document or per-seat limits. Storage is limited only by the disk space on your server. RecordEngine stores all original files and extracted data in a SQLite database and a local file store — both on your own hardware.
+  </Accordion>
+
+  <Accordion title="How does the Rules Engine work?">
+    The Rules Engine evaluates conditions against extracted document data and automatically takes actions — setting statuses, sending notifications, flagging documents for review, and triggering webhooks — without human intervention. For example: automatically flag for review any invoice where confidence is below 60%, or auto-approve invoices under a certain amount from trusted vendors. See [Rules Engine](/user-guide/rules-engine) for the full guide.
+  </Accordion>
+
+  <Accordion title="Can RecordEngine integrate with our existing software?">
+    Yes. RecordEngine has a REST API and outbound webhook system that connects to almost any external software. Built-in integration guides are available for Salesforce, HubSpot, QuickBooks, and Xero. Any system that can receive a webhook or call an HTTP API can integrate with RecordEngine. See [Integrations Overview](/integrations/overview).
+  </Accordion>
+
+  <Accordion title="What does 'Export' status mean?">
+    **Export** is the final active status in the document workflow. When you set a document to Export, RecordEngine fires the outbound webhook — sending the full extracted payload to whatever external system you've configured (QuickBooks, Xero, Salesforce, your ERP, etc.). After export, the document is typically archived. See [Document Workflow](/user-guide/document-workflow) for the full status lifecycle.
+  </Accordion>
+
+  <Accordion title="Can I customise what data gets extracted?">
+    Yes. Extraction Profiles define exactly which fields the AI looks for in each document type. You can create custom profiles with any fields you need — and add descriptions to help the AI understand ambiguous fields. Built-in profiles cover the most common document types. See [Extraction Profiles](/user-guide/extraction-profiles).
+  </Accordion>
+
+  <Accordion title="Does RecordEngine support audit trails for compliance?">
+    Yes. The Audit Log records every action — every upload, status change, field edit, rule trigger, and webhook delivery — with a timestamp and user attribution. Audit log entries are never deleted automatically. The log is exportable as CSV or PDF for compliance submissions. See [Audit Log](/user-guide/audit-log).
+  </Accordion>
+
+  <Accordion title="How do I back up my data?">
+    Go to **Settings → Backup → Create Backup**. A ZIP file downloads containing the database and all stored files. Store it off the RecordEngine server. Always create a backup before applying software updates.
+  </Accordion>
+
+  <Accordion title="Can RecordEngine run on AWS or Azure?">
+    Yes — RecordEngine is deployed on AWS GPU instances for our cloud-managed customers. The standard deployment uses an AWS `g5.xlarge` instance (NVIDIA A10G GPU). The Docker-based architecture means it runs on any Linux server with a compatible NVIDIA GPU. See [Docker on Linux](/deployment/docker-linux).
+  </Accordion>
+
+  <Accordion title="What happens if the AI model can't read a document?">
+    If the AI cannot extract meaningful data from a document, it sets the status to **Exception** and assigns a low confidence score with a reasoning explanation. The document is never silently discarded — it always appears in your queue so a human reviewer can handle it manually.
+  </Accordion>
+
+</AccordionGroup>

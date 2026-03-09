@@ -1,0 +1,143 @@
+---
+title: "System Requirements"
+sidebarTitle: "System Requirements"
+description: "Hardware, software, and network requirements for running RecordEngine on-premise."
+---
+
+RecordEngine runs entirely on your own hardware. This page covers everything you need before installation.
+
+---
+
+## Hardware
+
+### GPU (Required)
+
+RecordEngine requires an **NVIDIA GPU with at least 16 GB VRAM**. The GPU runs all AI inference locally — document extraction, summarisation, confidence scoring, and chat all happen on the GPU.
+
+| GPU | VRAM | Status |
+|-----|------|--------|
+| NVIDIA RTX 5090 | 32 GB | ✅ Recommended |
+| NVIDIA RTX 4090 | 24 GB | ✅ Supported — standard production config |
+| NVIDIA RTX 3090 / 3090 Ti | 24 GB | ✅ Supported |
+| NVIDIA A10G (AWS g5.xlarge) | 24 GB | ✅ Supported — cloud deployment |
+| NVIDIA RTX 4080 | 16 GB | ⚠️ Minimum — limited headroom |
+| AMD GPUs | — | ❌ Not supported |
+| Apple Silicon | — | ❌ Not supported |
+
+<Warning>
+  RecordEngine will not run without a supported NVIDIA GPU. CPU-only operation is not supported — inference speed on CPU is 20–50x slower than GPU and not viable for production use.
+</Warning>
+
+### CPU, RAM, and Storage
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 8 cores | 16+ cores |
+| RAM | 32 GB | 64 GB |
+| Storage | 200 GB SSD | 500 GB+ NVMe SSD |
+| Network | 100 Mbps LAN | 1 Gbps LAN |
+
+<Info>
+  Storage grows with your document archive. Plan for approximately 1–5 MB per document including the original file and extracted data. At 500 documents per month, 200 GB lasts several years — but NVMe SSD is strongly recommended over SATA SSD for faster model loading on startup.
+</Info>
+
+---
+
+## Software
+
+### Operating System
+
+| OS | Status |
+|----|--------|
+| Ubuntu 24.04 LTS | ✅ Recommended |
+| Ubuntu 22.04 LTS | ✅ Supported |
+| Debian 12 | ✅ Supported |
+| Windows Server 2022 | ⚠️ Community support only |
+| macOS | ❌ Not supported for production |
+
+### Required Software
+
+| Software | Minimum version | Notes |
+|----------|----------------|-------|
+| Docker Engine | 24.0+ | |
+| Docker Compose | 2.20+ | Included with Docker Desktop |
+| NVIDIA GPU Driver | 525+ | Must be installed before Docker |
+| NVIDIA Container Toolkit | Latest | Required for GPU access inside containers |
+
+All other dependencies (Python, FastAPI, Streamlit, Ollama, etc.) are included inside the Docker containers — nothing needs to be installed separately on the host OS.
+
+---
+
+## Network
+
+### Inbound Ports
+
+| Port | Service | Required |
+|------|---------|----------|
+| 80 | HTTP (redirects to HTTPS) | Yes |
+| 443 | HTTPS (Nginx reverse proxy) | Yes |
+| 22 | SSH (admin access) | Yes |
+
+Ports 8501 (Streamlit) and 8510 (FastAPI) should **not** be exposed publicly — all external access goes through Nginx on ports 80/443.
+
+### Internet Access
+
+RecordEngine operates fully offline after initial setup. Internet access is only required for:
+
+- **Initial setup:** Downloading Docker images and the AI model (~7–10 GB total)
+- **Software updates:** Pulling new code and model versions (infrequent, on your schedule)
+
+Once deployed, the system operates with no outbound internet connections. Documents never leave your server.
+
+### Firewall
+
+If your server is behind a corporate firewall, the following outbound connections are needed **only during setup**:
+
+| Destination | Port | Purpose |
+|-------------|------|---------|
+| `hub.docker.com` | 443 | Docker image downloads |
+| `registry-1.docker.io` | 443 | Docker image downloads |
+| `huggingface.co` | 443 | AI model download (via Ollama) |
+
+After initial setup, all of these can be blocked if your security policy requires it.
+
+---
+
+## Recommended Server Configurations
+
+<CardGroup cols={2}>
+  <Card title="Standard Office Deployment" icon="building">
+    **Lenovo ThinkStation or Dell Precision**
+    - CPU: Intel Core i9 or Xeon W
+    - GPU: NVIDIA RTX 4090 (24 GB)
+    - RAM: 64 GB DDR5
+    - Storage: 1 TB NVMe SSD
+    - OS: Ubuntu 24.04 LTS
+
+    Handles 100–300 documents per day comfortably.
+  </Card>
+  <Card title="High-Volume Deployment" icon="server">
+    **AWS g5.xlarge or equivalent**
+    - GPU: NVIDIA A10G (24 GB)
+    - vCPU: 4
+    - RAM: 16 GB
+    - Storage: 500 GB+ EBS gp3
+
+    Cloud deployment for distributed teams. See [Docker on Linux](/deployment/docker-linux).
+  </Card>
+</CardGroup>
+
+---
+
+## Client Requirements
+
+Users access RecordEngine through a web browser — no software installation is required on client machines.
+
+| Browser | Status |
+|---------|--------|
+| Chrome 100+ | ✅ Recommended |
+| Firefox 100+ | ✅ Supported |
+| Safari 16+ | ✅ Supported |
+| Edge 100+ | ✅ Supported |
+
+The mobile chat interface works on any modern mobile browser (iOS Safari, Android Chrome).

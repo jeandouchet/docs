@@ -1,0 +1,128 @@
+---
+title: "Updating RecordEngine"
+sidebarTitle: "Updating"
+description: "How to safely update RecordEngine to a new version — code updates and Docker image rebuilds."
+---
+
+RecordEngine updates come in two types: **code updates** (most updates) and **image rebuilds** (less frequent, required when system dependencies change). Both are safe operations, but a backup first is always recommended.
+
+---
+
+## Before Updating
+
+Always create a backup before applying any update:
+
+```bash
+xr backup
+```
+
+Move the resulting ZIP file off the server (external drive, NAS, or secure cloud storage) before proceeding.
+
+---
+
+## Code Updates (Most Common)
+
+Most RecordEngine updates are code-only — Python files, the Streamlit UI, the API. These apply immediately without rebuilding Docker images.
+
+```bash
+xr update
+```
+
+This command:
+1. Pulls the latest code from the git repository
+2. Restarts the `xr-ui`, `xr-watcher`, and `xr-api` containers
+
+The entire operation takes under a minute. No data loss, no downtime beyond the 10–15 second container restart.
+
+### If you see git merge conflicts
+
+If you've made local modifications to `docker-compose.yml` or other files, `xr update` may encounter a merge conflict. Resolve it with:
+
+```bash
+cd /opt/xr
+git fetch origin
+git reset --hard origin/main
+xr update
+```
+
+<Warning>
+  `git reset --hard` discards all local uncommitted changes. If you've made local customisations you want to keep, commit them to a branch first, or copy the files you care about before running the reset.
+</Warning>
+
+---
+
+## Image Rebuilds (Less Frequent)
+
+When a RecordEngine update changes system dependencies — for example, adding a new system package to the Dockerfile — a simple code pull is not enough. You need to rebuild the Docker image.
+
+Release notes will always say explicitly when an image rebuild is required.
+
+```bash
+cd /opt/xr
+git pull
+
+cd cloud
+docker compose build
+docker compose up -d
+```
+
+Rebuilding the image takes 5–15 minutes depending on your server's internet connection and CPU. Containers are automatically restarted when the build completes.
+
+### Verify after rebuild
+
+```bash
+xr test
+```
+
+All 80 tests should pass. If any tests fail after an update, check the release notes for migration steps, or see [Troubleshooting](/troubleshooting/common-issues).
+
+---
+
+## Environment Variable Changes
+
+`xr update` and `docker restart` do **not** apply changes to environment variables in `docker-compose.yml`. If an update requires setting a new env var:
+
+```bash
+cd /opt/xr/cloud
+nano .env   # or edit docker-compose.yml directly
+docker compose up -d --no-build
+```
+
+`docker compose up -d --no-build` recreates containers with updated env vars without rebuilding images.
+
+---
+
+## Checking Your Current Version
+
+```bash
+docker exec xr-ui cat /app/version.txt
+```
+
+Or check the UI — the version number is displayed in the bottom-left corner of the sidebar.
+
+---
+
+## Rollback
+
+If an update causes problems, roll back to the previous version:
+
+```bash
+cd /opt/xr
+git log --oneline -10   # find the previous commit hash
+git checkout PREVIOUS-HASH
+cd cloud && docker compose up -d --no-build
+```
+
+If the issue involves a database schema change, restore from your pre-update backup instead — database schema changes are not automatically reversible with a git rollback.
+
+---
+
+## Update Frequency
+
+RecordEngine releases follow semantic versioning (v2.5.5, v2.6.0, etc.):
+
+- **Patch releases** (x.x.N) — bug fixes and minor improvements. Code update only.
+- **Minor releases** (x.N.0) — new features. Code update; occasionally requires image rebuild.
+- **Major releases** (N.0.0) — significant changes. Image rebuild required; may include migration steps.
+
+Release notes are published at [docs.recordengine.ai/changelog](/changelog) and sent to registered customers by email.

@@ -1,0 +1,109 @@
+---
+title: "Batch Operations"
+sidebarTitle: "Batch Operations"
+description: "Approve, export, move, and delete multiple documents at once — without opening each one individually."
+---
+
+Batch operations let you act on multiple documents simultaneously. Instead of opening each document to approve it, you select a group and approve them all in one click — saving significant time during period-end processing.
+
+---
+
+## Selecting Documents
+
+In the document list, each row has a **checkbox** on the left. Click a checkbox to select that document. Selected documents are highlighted.
+
+### Selecting Multiple Documents
+
+| Action | What it selects |
+|--------|----------------|
+| Click a checkbox | Selects that one document |
+| Click **Select All** | Selects all documents currently visible in the list |
+| Hold Shift + click | Selects all documents between the first and last clicked |
+
+The selection count appears at the top of the list: *"14 documents selected"*.
+
+<img
+  src="/images/user-guide/batch-select.png"
+  alt="Document list with several documents checked and batch action menu open"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Document list with 4–5 checkboxes ticked, the batch action bar visible at the top */}
+
+---
+
+## Available Batch Actions
+
+Once documents are selected, the **batch action bar** appears at the top of the list with the available actions:
+
+### Batch Approve
+
+Sets all selected documents to **Approved** status in one click.
+
+Best used after a review session where you've checked several documents individually and are confident they're correct. Select the reviewed documents, click **Approve All**, and they're all locked simultaneously.
+
+<Tip>
+  For even faster throughput, combine with the Rules Engine: set a rule to automatically approve documents where `confidence_score >= 90`. Only documents below the threshold need manual review — then batch-approve the manual reviews at the end.
+</Tip>
+
+### Batch Export
+
+Sets all selected documents to **Export** status, triggering the outbound webhook for each document.
+
+Use this for end-of-day or end-of-week processing runs — approve a batch of invoices, then select all approved and batch-export to push them all to QuickBooks or Xero at once.
+
+<Warning>
+  Batch export triggers the webhook for every selected document. If your automation platform has rate limits (Xero allows 60 API calls per minute, for example), exporting a large batch simultaneously may cause some webhook deliveries to fail. For batches over 50 documents, consider exporting in smaller groups with a short pause between them.
+</Warning>
+
+### Batch Move
+
+Moves all selected documents to a different contact or folder.
+
+1. Select the documents
+2. Click **Move**
+3. Choose the destination contact and folder
+4. Confirm
+
+Useful for reorganising documents after a folder structure change, or for reassigning a batch of documents that were filed under the wrong contact.
+
+### Batch Delete
+
+Permanently deletes all selected documents and their files.
+
+<Warning>
+  Batch delete is permanent. Deleted documents cannot be recovered unless you have a recent backup. You will be asked to confirm before the deletion proceeds. Approved documents cannot be batch-deleted — set them to Archived first if you need to remove them from the active archive.
+</Warning>
+
+### Batch Archive
+
+Moves all selected documents to **Archived** status, removing them from the default document list view. Archived documents are still accessible via Advanced Search with the Archived status filter.
+
+Use batch archive at period-end to move processed and exported documents out of the active queue.
+
+---
+
+## Batch Operations and Filters
+
+Batch operations work on the **currently visible documents in the list** — whatever is shown after applying your current filters. This makes it easy to batch-act on a specific subset:
+
+**Example — batch approve all high-confidence invoices from this month:**
+
+1. Filter the document list: Contact = All, Status = Needs Review, Date = this month, Profile = Standard Invoice
+2. Sort by Confidence Score descending
+3. Visually confirm the top results look correct
+4. Click **Select All**
+5. Click **Approve All**
+
+Only the documents matching your filter are selected and approved — nothing outside your filter is touched.
+
+---
+
+## Batch Operations via the Rules Engine
+
+For recurring batch operations that happen on a schedule or condition, consider automating them with the Rules Engine instead of doing them manually:
+
+- Auto-approve when `confidence_score >= 90` and `status = Needs Review`
+- Auto-archive when `status = Approved` and `doc_date < 90 days ago`
+- Auto-export when `status = Approved` and `contact_name = "Trusted Vendor"`
+
+See [Rules Engine](/user-guide/rules-engine) for how to configure these.

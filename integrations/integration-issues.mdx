@@ -1,0 +1,120 @@
+---
+title: "Integration Troubleshooting"
+sidebarTitle: "Integration Issues"
+description: "Diagnosing and fixing problems with webhooks, API calls, and external system integrations."
+---
+
+Most integration issues fall into one of four categories: the webhook isn't firing, the payload isn't arriving at the receiver, field mapping is wrong, or the external system is rejecting the request. This guide covers each.
+
+---
+
+## Webhook Not Firing
+
+**Symptom:** Documents reach Export status but your receiver (automation scenario, webhook.site, etc.) never receives a request.
+
+**Diagnosis checklist:**
+
+1. **Confirm the webhook URL is saved** — Go to **Settings → Webhooks** and verify the Document Webhook URL field is filled in and saved. It's easy to fill it in and navigate away without saving.
+
+2. **Confirm the document actually reached Export status** — Check the document status in RecordEngine. The webhook only fires on Export — not on Approved, Ready, or any other status.
+
+3. **Check the Audit Log** — Go to **Audit Log** and filter to the document in question. Look for a webhook delivery entry. If it's there with a non-200 response code, the webhook fired but the receiver rejected it.
+
+4. **Test with webhook.site** — Replace the webhook URL in Settings with a fresh `webhook.site` URL, export any document, and check whether the request arrives. If it does, the issue is with your actual receiver — not with RecordEngine.
+
+---
+
+## Webhook Arriving But Request Body Is Empty or Malformed
+
+**Symptom:** Your receiver gets the POST request but the body is empty, or JSON parsing fails.
+
+Your receiver must read the raw request body as JSON. Make sure you're not treating it as a form-encoded body:
+
+```python
+# Correct
+payload = await request.json()
+
+# Wrong — webhook sends JSON, not form data
+payload = await request.form()
+```
+
+Also confirm the `Content-Type` header is `application/json` — RecordEngine always sends this.
+
+---
+
+## Authentication Rejected by Receiver
+
+**Symptom:** Your receiver returns `401` and the integration fails. Visible in the Audit Log as a non-200 webhook response.
+
+RecordEngine sends the Bearer token in the `Authorization` header. Your receiver needs to validate it:
+
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+If your receiver is checking a different header (e.g. `X-Api-Key`), update the validation logic to check `Authorization` instead. See [Authentication](/api-reference/authentication) for example validation code.
+
+---
+
+## Fields Missing or Named Differently in the Payload
+
+**Symptom:** Your automation scenario can't find a field it expects — for example, `invoice_number` is missing, or `vendor` doesn't exist in the payload.
+
+The keys inside `extracted_fields` in the webhook payload are determined by your extraction profile. They match the field labels in your profile, converted to `snake_case`.
+
+**To find the exact field keys:**
+1. Export any document and check the payload in your automation platform's execution log
+2. Or use webhook.site — export a document and inspect the full JSON body
+
+If a field is missing from the payload entirely, check whether it's defined in the extraction profile being used for that document.
+
+---
+
+## Automation Scenario Not Triggering
+
+**Symptom:** RecordEngine fires the webhook (visible in the Audit Log) but your automation scenario doesn't execute.
+
+1. **Confirm the scenario is active** — Check that the scenario is turned on in your automation platform
+2. **Check the webhook URL** — The URL in RecordEngine Settings must exactly match the webhook URL configured in your automation scenario trigger. A single character difference will cause a mismatch
+3. **Check for recent execution errors** — Review the scenario's execution history for errors on recent runs
+
+---
+
+## External System Rejecting the Record
+
+**Symptom:** Your automation scenario executes but the final action (create Bill in Xero, update deal in HubSpot, etc.) fails with an error from the external system.
+
+Check the specific error message in your automation execution log. Common causes:
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Contact / vendor not found | The extracted vendor name doesn't match any record in the external system | Add a lookup step in your scenario to search for the contact first; create it if not found |
+| Invalid field value | A field was extracted with an unexpected format (e.g. date as "November 15" instead of "2025-11-15") | Add a format-conversion step in your scenario |
+| Duplicate record | A record with the same reference number already exists | Add a duplicate-check step before creation |
+| Authentication error | The external system connection has expired | Re-authorise the connection in your automation platform |
+| Required field missing | A mandatory field in the external system wasn't extracted | Set a fallback value in your scenario mapping |
+
+---
+
+## API Upload Not Working
+
+**Symptom:** `POST /api/documents/upload` returns an error.
+
+| HTTP Code | Likely cause |
+|-----------|-------------|
+| `401` | Missing or invalid Bearer token |
+| `422` | Required field missing — check you're sending `contact_id`, `folder_id`, and `file` |
+| `404` | The `contact_id` or `folder_id` doesn't exist — verify the IDs |
+| `500` | Server error — check container logs: `docker logs xr-api --tail 50` |
+
+---
+
+## Debugging Tips
+
+**Check the Audit Log first** — the Audit Log records every webhook delivery attempt with the HTTP response code. This is usually the fastest way to identify whether the problem is on the RecordEngine side or the receiver side.
+
+**Use webhook.site to isolate** — if you're not sure whether RecordEngine is sending the right payload, temporarily replace the webhook URL with a webhook.site URL. You'll see the exact request headers and body that RecordEngine sends.
+
+**Check automation execution logs** — your automation platform records every execution with full input and output data. The error is usually visible in the module that failed.
+
+**Verify with a direct API call** — if your automation scenario is failing, test the same API call manually with curl or Postman to confirm whether the issue is with the external system or the scenario configuration.

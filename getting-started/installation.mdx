@@ -1,0 +1,282 @@
+---
+title: "Installation"
+sidebarTitle: "Installation"
+description: "Install RecordEngine on a Linux server in under an hour — step by step."
+---
+
+This guide walks through a complete RecordEngine installation on a fresh Ubuntu server. By the end you'll have a running instance accessible from your browser over HTTPS.
+
+<Info>
+  Before starting, confirm your server meets the [System Requirements](/getting-started/system-requirements) — particularly the NVIDIA GPU requirement. RecordEngine will not run without a supported GPU.
+</Info>
+
+---
+
+## Overview
+
+Installation has five stages:
+
+1. Prepare the server (GPU drivers, Docker, NVIDIA Container Toolkit)
+2. Install RecordEngine
+3. Configure your environment
+4. Start the containers and pull the AI model
+5. Set up HTTPS and log in
+
+Total time: **45–90 minutes** (most of which is waiting for downloads).
+
+---
+
+## Stage 1 — Prepare the Server
+
+### Verify GPU Drivers
+
+```bash
+nvidia-smi
+```
+
+You should see your GPU model and driver version. If this command fails, install the NVIDIA drivers first:
+
+```bash
+sudo apt update
+sudo ubuntu-drivers autoinstall
+sudo reboot
+```
+
+After reboot, run `nvidia-smi` again to confirm.
+
+### Install Docker
+
+```bash
+curl -fsSL https://get.docker.com | bash
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+### Install NVIDIA Container Toolkit
+
+This allows Docker containers to access the GPU:
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+sudo apt update && sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+Verify GPU access works inside Docker:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+```
+
+You should see the same GPU information as from the host. If this fails, the NVIDIA Container Toolkit is not configured correctly — do not proceed until it works.
+
+---
+
+## Stage 2 — Install RecordEngine
+
+```bash
+# Install git and nginx
+sudo apt install -y git nginx certbot python3-certbot-nginx
+
+# Create the application directory
+sudo mkdir -p /opt/xr
+sudo chown $USER:$USER /opt/xr
+cd /opt/xr
+
+# Clone the repository
+git clone https://github.com/YOUR_ORG/xr-platform.git .
+
+# Create required data directories
+mkdir -p data storage ollama-data
+
+# Install the xr management command
+sudo cp xr /usr/local/bin/xr
+sudo chmod +x /usr/local/bin/xr
+```
+
+---
+
+## Stage 3 — Configure Your Environment
+
+Open the Docker Compose configuration file:
+
+```bash
+nano /opt/xr/cloud/docker-compose.yml
+```
+
+Set the `SERVER_URL` environment variable in both the `ui` and `api` service sections. This must be your server's public URL — the one users will access in their browser:
+
+```yaml
+environment:
+  SERVER_URL: https://YOUR-DOMAIN.recordengine.ai
+```
+
+<Warning>
+  YAML indentation is significant. Every environment variable must be indented exactly 2 spaces under the `environment:` key. A single extra space will silently prevent the variable from loading.
+</Warning>
+
+The AI model variables are pre-configured correctly — leave them as-is unless you have a specific reason to change them.
+
+---
+
+## Stage 4 — Start the Containers
+
+```bash
+cd /opt/xr/cloud
+docker compose up -d
+```
+
+Check that all four containers started:
+
+```bash
+xr status
+```
+
+You should see `xr-ui`, `xr-watcher`, `xr-api`, and `ollama` all showing as **Up**.
+
+### Pull the AI Model
+
+The AI model needs to be downloaded once into the Ollama container. This is a ~6.6 GB download:
+
+```bash
+docker exec ollama ollama pull qwen3.5:9b
+```
+
+This takes 5–20 minutes depending on your internet connection. Once the download completes, warm up the model to load it into GPU memory:
+
+```bash
+docker exec ollama ollama run qwen3.5:9b "Ready" --keepalive -1
+```
+
+The first run takes 1–3 minutes as the model loads. You'll see a response when it's ready. Press `Ctrl+D` to exit the interactive session.
+
+<Info>
+  This warmup step is important. The first real document a user processes will otherwise trigger the model load, causing an apparent delay of several minutes. Running the warmup now means the first user experience is fast.
+</Info>
+
+---
+
+## Stage 5 — Set Up HTTPS
+
+### Configure Nginx
+
+Create the Nginx site configuration:
+
+```bash
+sudo nano /etc/nginx/sites-available/recordengine
+```
+
+Paste the following — replacing `YOUR-DOMAIN.recordengine.ai` with your actual domain:
+
+```nginx
+server {
+    listen 80;
+    server_name YOUR-DOMAIN.recordengine.ai;
+
+    location / {
+        proxy_pass http://localhost:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 120;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8510/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120;
+    }
+}
+```
+
+Enable the site and reload Nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/recordengine /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Enable SSL
+
+```bash
+sudo certbot --nginx -d YOUR-DOMAIN.recordengine.ai
+```
+
+Follow the prompts. Certbot configures HTTPS automatically and sets up auto-renewal.
+
+### Point Your Domain
+
+In your DNS provider, create an **A record** pointing your subdomain to your server's public IP address:
+
+```
+Type: A
+Name: YOUR-SUBDOMAIN
+Value: YOUR-SERVER-IP
+TTL: 300
+```
+
+DNS propagation takes 1–10 minutes. Once it resolves, HTTPS will be active.
+
+---
+
+## First Login
+
+Open `https://YOUR-DOMAIN.recordengine.ai` in your browser. The **First-Time Setup Wizard** appears:
+
+<Steps>
+  <Step title="Create your admin account">
+    Set your admin username and password. This is the master account — store the credentials safely.
+  </Step>
+  <Step title="Name your instance">
+    Enter a display name for this RecordEngine instance (e.g. *"Acme Finance — Shanghai"*).
+  </Step>
+  <Step title="Choose a theme">
+    Select your preferred colour theme. This can be changed at any time in Settings.
+  </Step>
+</Steps>
+
+You're in. RecordEngine is ready to use.
+
+---
+
+## Verify Installation
+
+Run the test suite to confirm everything is working correctly:
+
+```bash
+xr test
+```
+
+All 80 tests should pass. If any fail, check `docker logs xr-ui --tail 100` for error details.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Your First Document" icon="file-arrow-up" href="/getting-started/your-first-document">
+    Upload a document and see the full extraction pipeline in action.
+  </Card>
+  <Card title="Extraction Profiles" icon="sliders" href="/user-guide/extraction-profiles">
+    Configure the fields RecordEngine extracts for each document type.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/overview">
+    Connect RecordEngine to QuickBooks, Xero, Salesforce, or HubSpot.
+  </Card>
+  <Card title="User Management" icon="users" href="/user-guide/settings#user-management">
+    Add team members and set access roles.
+  </Card>
+</CardGroup>

@@ -1,0 +1,159 @@
+---
+title: "AI Processing Issues"
+sidebarTitle: "AI Processing"
+description: "Diagnose slow processing, empty extractions, low confidence scores, and model errors."
+---
+
+This page covers issues specific to the AI extraction pipeline — the `xr-watcher` container and the Ollama model server.
+
+---
+
+## Documents Not Processing
+
+### Document stays in "New" status
+
+The AI worker (`xr-watcher`) is not picking up documents. Check:
+
+```bash
+# Is the watcher running?
+docker ps | grep xr-watcher
+
+# Check watcher logs
+docker logs xr-watcher --tail 100
+```
+
+If the watcher is running but logs show it's waiting, the issue may be that Ollama is not responding. Test Ollama directly:
+
+```bash
+curl http://localhost:11434/api/tags
+# Should return a list of available models
+```
+
+If Ollama is not responding, restart it:
+```bash
+docker restart ollama
+# Wait 30 seconds, then restart the watcher
+docker restart xr-watcher
+```
+
+### Document stays in "Processing" status
+
+The AI model started processing but didn't finish. This can happen if:
+
+- **The model timed out on a very large document** — Multi-page PDFs can take several minutes. Check `docker logs xr-watcher --tail 50` — if you see the document was picked up, it's still processing.
+- **The model ran out of VRAM** — Check `nvidia-smi`. If VRAM usage is at 100%, another process may have claimed it.
+- **The watcher crashed mid-processing** — Restart with `docker restart xr-watcher`. The document will be re-queued automatically.
+
+```bash
+nvidia-smi
+# Look at "GPU Memory Usage" — should be <90% with qwen3.5:9b
+```
+
+---
+
+## Empty or Incorrect Extractions
+
+### All extracted fields are empty
+
+The AI returned a response but no fields were extracted. Most common causes:
+
+1. **Wrong extraction profile** — the profile's fields don't match what's in the document. A "Standard Invoice" profile on a meeting notes document will extract nothing useful.
+2. **Document is unreadable** — a blank page, a completely black scan, or a password-protected PDF that wasn't decrypted. Open the original file on your computer to verify it has readable content.
+3. **Model returned `<think>` tags only** — this indicates `think: False` is not set on Ollama API calls. Check container environment variables.
+
+### Some fields always come back wrong for one vendor
+
+The AI is misinterpreting a field specific to that vendor's invoice layout. Fix: edit the extraction profile field and add a more specific description. For example, change the "Invoice Number" field description from blank to:
+
+> *"The invoice number appears in the top-right corner of this vendor's invoices, labelled 'Our Reference' or 'Ref No.'"*
+
+The more specific your field description, the better the AI performs on unusual layouts.
+
+### Currency is extracted as the wrong value
+
+Common on multi-currency documents where a secondary currency appears prominently. Add a field description:
+
+> *"Extract the primary transaction currency — the currency in which the total amount is stated. Ignore any reference currencies shown for informational purposes."*
+
+---
+
+## Low Confidence Scores
+
+### Confidence is consistently below 70 on clean documents
+
+A clean, readable document should score 70+ with the right profile. If it doesn't:
+
+1. **Check the confidence reasoning** — open the document detail panel and read the AI's explanation. It will say specifically what it couldn't find.
+2. **Compare the profile fields to the document** — if the document doesn't contain a "due date" but your profile requires one, that field will always be missing and drag the score down. Either mark the field as optional in the profile, or accept that this document type doesn't include that field.
+3. **Check document language** — if your profile field labels are in English but the document is in Chinese (or vice versa), add multilingual descriptions to your profile fields.
+
+### Confidence is low on scanned documents
+
+Scanned documents score lower than digital PDFs because image quality varies. To improve:
+
+- Rescan at 300 DPI minimum with good lighting and contrast
+- Avoid scanning through glass (moire patterns reduce OCR accuracy)
+- Scan straight — skewed pages reduce extraction accuracy
+- If scanning with a phone, use a dedicated scanning app rather than a generic camera
+
+---
+
+## Model and GPU Issues
+
+### `nvidia-smi` shows the GPU is not being used
+
+Ollama may not have GPU access. Check:
+
+```bash
+docker inspect ollama | grep -i gpu
+# Should show GPU device assignment
+```
+
+If the GPU is not assigned, the NVIDIA Container Toolkit may not be configured:
+
+```bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+cd /opt/xr/cloud && docker compose up -d
+```
+
+### Processing is much slower than expected
+
+On an RTX 4090 with qwen3.5:9b, a single-page PDF invoice should process in 15–30 seconds. If it's consistently taking 5+ minutes:
+
+1. **Cold model load** — the first document after a restart always takes longer. Run a warmup document first.
+2. **GPU not in use** — confirm `nvidia-smi` shows Ollama using GPU memory while processing.
+3. **CPU inference fallback** — if the GPU driver or NVIDIA Container Toolkit isn't working, Ollama falls back to CPU, which is 20–50x slower. CPU processing for one document can take 10+ minutes.
+
+### "Out of memory" errors in Ollama logs
+
+The model is being loaded but exceeds available VRAM. This can happen if another process is using GPU memory.
+
+```bash
+# Check what's using VRAM
+nvidia-smi
+
+# Kill other GPU processes if needed
+# Then restart Ollama
+docker restart ollama
+```
+
+If VRAM is genuinely insufficient, consider upgrading to a GPU with more VRAM (RTX 5090: 32 GB) or switching to a smaller model variant.
+
+---
+
+## Audio Transcription Issues
+
+### Audio files stay in Processing much longer than PDFs
+
+This is expected. Audio transcription adds a pre-processing step before AI extraction. A 30-minute meeting recording takes approximately 5–10 minutes to transcribe before extraction begins.
+
+### Transcription has many errors
+
+Audio quality directly affects transcription accuracy. Common issues:
+- **Background noise** — record in a quieter environment
+- **Multiple overlapping speakers** — the model handles this but accuracy drops with more simultaneous speakers
+- **Strong accents or non-native speakers** — the model is robust but accuracy varies
+- **Low sample rate audio** — use at least 16 kHz recording quality
+
+There is no configuration to adjust transcription quality — the improvement must come from the audio source.

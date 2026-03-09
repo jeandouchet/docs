@@ -1,0 +1,108 @@
+---
+title: "Advanced Search"
+sidebarTitle: "Advanced Search"
+description: "Find any document across your entire RecordEngine instance using full-text search, status, confidence score, date ranges, and extracted field values."
+---
+
+Advanced Search lets you find any document in your RecordEngine instance using a combination of filters — keyword search across extracted content, status, confidence score, date range, contact, folder, and custom field values. Unlike the document list (which shows one folder at a time), Advanced Search queries across all contacts and folders simultaneously.
+
+<img
+  src="/images/user-guide/advanced-search.png"
+  alt="RecordEngine Advanced Search with filters applied"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Advanced Search page with several filters active (status, confidence, date range) and results visible below */}
+
+---
+
+## Opening Advanced Search
+
+Click **Search** in the left sidebar. The search interface opens with an empty query — all documents are shown until you apply filters.
+
+---
+
+## Search Filters
+
+Combine any number of filters simultaneously. Results update as you apply each one.
+
+### Keyword Search
+
+The keyword bar queries across document filenames, AI-generated summaries, all extracted field values, and user-entered notes. Search is full-text — searching for *"Acme"* returns all documents where "Acme" appears anywhere in the extracted data or summary, regardless of which contact or folder they're in.
+
+### Status Filter
+
+Filter to documents in one or more statuses. Ctrl/Cmd-click to select multiple — for example, show *Needs Review* and *Missing Info* together as a combined review queue.
+
+### Confidence Score Range
+
+Filter by confidence band:
+
+| Band | Score range |
+|------|------------|
+| High | 90–100 |
+| Good | 70–89 |
+| Low | 50–69 |
+| Poor | 0–49 |
+
+Or set a custom numeric range — for example, 75–100 to find all documents above a specific threshold.
+
+### Date Range
+
+Filter by the document date extracted from the document itself (not the upload date). Use this to find all invoices from a specific month or quarter.
+
+To filter by upload date instead, use the **Uploaded** date range filter.
+
+### Contact and Folder
+
+Narrow results to a specific contact, or to a specific folder within that contact. The folder dropdown is only available once a contact is selected.
+
+### Document Type
+
+Filter by the document type detected by the AI — Invoice, Receipt, Contract, Meeting Notes, etc.
+
+### Extracted Field Values
+
+Filter on the value of any specific extracted field:
+- `vendor` contains *"Acme"*
+- `total_amount` is greater than 10,000
+- `currency` equals *"CNY"*
+
+Select the field name from the dropdown, choose a comparison operator, then enter the value.
+
+---
+
+## Saving Searches
+
+Frequently used filter combinations can be saved:
+
+1. Apply your filters
+2. Click **Save Search**
+3. Give the search a name
+4. It appears in the Saved Searches list at the top of the page for quick access
+
+Saved searches persist across sessions and are available to all users on the instance.
+
+---
+
+## Exporting Search Results
+
+Once you have a filtered result set, export it:
+
+- **CSV Export** — downloads all results as a spreadsheet, with one row per document and all extracted fields as columns
+- **Batch Operations** — select all results and apply a batch status change, export, or folder assignment
+
+See [Batch Operations](/user-guide/batch-operations) for the full list of what you can do with a selection.
+
+---
+
+## Search Tips
+
+**Find documents with missing fields:** Set Confidence to Poor (0–49) and Status to Needs Review. These are documents where the AI was least certain — usually where fields are missing or ambiguous.
+
+**Find all exports for a period:** Set Status to Export and a date range covering the period. Use this to verify everything pushed to QuickBooks or Salesforce in a given month.
+
+**Find a specific invoice number:** Paste the invoice number into the keyword search. If it was extracted, the document appears immediately.
+
+**Find all documents from a vendor across all contacts:** Keyword-search the vendor name. Results include that vendor's documents regardless of which folder they're filed under.
+
+**Monthly compliance check:** Set date range to the previous month, status to Approved + Export, and export as CSV for a clean ledger of all documents processed in the period.
