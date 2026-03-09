@@ -1,0 +1,227 @@
+---
+title: "Outbound Webhooks"
+sidebarTitle: "Webhooks"
+description: "How RecordEngine pushes structured data to your external systems — payload schemas, configuration, and testing."
+---
+
+RecordEngine uses **outbound webhooks** to push data to your external systems the moment something happens — a document is approved, a contact is created, a folder is updated. Instead of polling the API for changes, your systems receive the data automatically.
+
+---
+
+## The Three Webhooks
+
+RecordEngine supports three independent webhook channels, each covering a different type of event:
+
+| Webhook | Fires when | Primary use case |
+|---------|-----------|-----------------|
+| **Document Webhook** | A document reaches **Export** status | Push extracted data to ERP, accounting, CRM |
+| **Contact Webhook** | A contact is created or updated | Sync contact records to CRM |
+| **Folder Webhook** | A folder is created or updated | Trigger downstream folder provisioning |
+
+Configure each webhook URL independently in **Settings → Webhooks**.
+
+---
+
+## Configuring Webhook URLs
+
+1. Go to **Settings → Webhooks**
+2. Paste your receiving URL into the appropriate field
+3. Click **Save**
+
+<img
+  src="/images/user-guide/settings-webhooks.png"
+  alt="Settings page showing webhook URL configuration"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Settings page with the Webhooks section visible and URLs entered — reuse from settings article */}
+
+<Tip>
+  Not sure if your receiver is working? Use [webhook.site](https://webhook.site) to get a free temporary URL. Paste it into the Document Webhook field, export any document, and you'll see the exact payload in your browser within seconds.
+</Tip>
+
+---
+
+## Document Webhook Payload
+
+This is the most important webhook — it carries the full structured output from the AI extraction.
+
+```json
+{
+  "id": 847,
+  "filename": "acme-invoice-nov-2025.pdf",
+  "original_filename": "acme-invoice-nov-2025.pdf",
+  "status": "Export",
+  "source": "UI",
+  "doc_type": "Invoice",
+  "doc_date": "2025-11-15",
+  "contact_id": 5,
+  "contact_name": "Acme Corporation",
+  "folder_id": 12,
+  "folder_name": "Q4 Invoices",
+  "ai_summary": "Invoice from Acme Corporation for consulting services in October 2025. Total amount ¥18,500 CNY, due December 15.",
+  "confidence_score": 87,
+  "confidence_label": "Good",
+  "confidence_reasoning": "All 8 fields extracted successfully. Line items sum correctly to the stated total.",
+  "extracted_fields": {
+    "vendor": "Acme Corporation",
+    "invoice_number": "INV-2025-1147",
+    "invoice_date": "2025-11-15",
+    "due_date": "2025-12-15",
+    "currency": "CNY",
+    "subtotal": "16500.00",
+    "tax": "2000.00",
+    "total_amount": "18500.00"
+  },
+  "line_items": [
+    {
+      "description": "Consulting services — October 2025",
+      "quantity": 10,
+      "unit_price": 1500.00,
+      "amount": 15000.00
+    },
+    {
+      "description": "Travel expenses",
+      "quantity": 1,
+      "unit_price": 1500.00,
+      "amount": 1500.00
+    }
+  ],
+  "external_refs": {
+    "salesforce": {
+      "record_id": "001Qy00000BnXt2IAF",
+      "record_type": "Opportunity",
+      "record_url": "https://yourorg.salesforce.com/001Qy00000BnXt2IAF"
+    }
+  },
+  "doc_url": "https://a9f3d7e2.recordengine.ai/api/document/847/view",
+  "created_at": "2025-11-15T08:23:41Z",
+  "updated_at": "2025-11-15T09:01:12Z"
+}
+```
+
+### Field Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Unique document ID in RecordEngine |
+| `filename` | string | Stored filename |
+| `status` | string | Current status — will be `Export` |
+| `doc_type` | string | Document type detected by AI |
+| `doc_date` | string | Date extracted from the document |
+| `contact_id` | integer | ID of the owning contact |
+| `contact_name` | string | Name of the owning contact |
+| `folder_id` | integer | ID of the owning folder |
+| `ai_summary` | string | Plain-language AI summary |
+| `confidence_score` | integer | AI confidence 0–100 |
+| `confidence_label` | string | High / Good / Low / Poor |
+| `confidence_reasoning` | string | AI explanation of the score |
+| `extracted_fields` | object | All fields from the extraction profile, keyed by field name |
+| `line_items` | array | Table rows extracted from the document |
+| `external_refs` | object | CRM correlation IDs (if set at upload) |
+| `doc_url` | string | Deep-link URL to open this document directly in the UI |
+| `created_at` | string | ISO 8601 upload timestamp |
+| `updated_at` | string | ISO 8601 last-modified timestamp |
+
+<Info>
+  The keys inside `extracted_fields` are determined by your extraction profile — they match the field labels you defined, converted to `snake_case`. A profile with a field labelled "Invoice Number" produces `"invoice_number"` in the payload.
+</Info>
+
+---
+
+## Contact Webhook Payload
+
+Fires when a contact is created or updated via the UI or API.
+
+```json
+{
+  "id": 5,
+  "name": "Acme Corporation",
+  "type": "Client",
+  "email": "accounts@acme.com",
+  "phone": "+86 21 5555 0100",
+  "notes": "Primary contact: James Chen",
+  "created_at": "2025-10-01T10:00:00Z",
+  "updated_at": "2025-11-15T09:05:00Z"
+}
+```
+
+---
+
+## Folder Webhook Payload
+
+Fires when a folder is created or updated.
+
+```json
+{
+  "id": 12,
+  "name": "Q4 Invoices",
+  "contact_id": 5,
+  "contact_name": "Acme Corporation",
+  "created_at": "2025-10-01T10:05:00Z",
+  "updated_at": "2025-10-01T10:05:00Z"
+}
+```
+
+---
+
+## Authentication
+
+Every webhook POST from RecordEngine includes your API token in the `Authorization` header:
+
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: application/json
+```
+
+Your receiver should validate this header to confirm the request came from your RecordEngine instance. See [Authentication](/api-reference/authentication) for example validation code in Python and Node.js.
+
+---
+
+## Responding to a Webhook
+
+Your webhook receiver must return an HTTP `200` response. RecordEngine considers any non-200 response a failure.
+
+Keep your receiver fast — do any heavy processing asynchronously after returning 200:
+
+```python
+from fastapi import Request, BackgroundTasks
+
+@app.post("/webhook")
+async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
+    payload = await request.json()
+    
+    # Return 200 immediately
+    background_tasks.add_task(process_document, payload)
+    return {"received": True}
+
+async def process_document(payload: dict):
+    # Do the heavy work here — update QuickBooks, Salesforce, etc.
+    pass
+```
+
+---
+
+## Testing Your Webhook
+
+**Option 1 — webhook.site (no code needed)**
+
+1. Go to [webhook.site](https://webhook.site) and copy the unique URL
+2. Paste it into **Settings → Document Webhook URL** in RecordEngine
+3. Export any document
+4. Refresh webhook.site — you'll see the full request headers and JSON payload
+
+**Option 2 — local testing with a tunnel**
+
+If you're developing a local receiver, expose it to the internet using a tunnelling tool so RecordEngine can reach it. Run the tunnel command, copy the public URL, and paste it into RecordEngine Settings.
+
+---
+
+## Triggering the Document Webhook
+
+The document webhook fires **only when a document reaches Export status**. To trigger it:
+
+1. Process a document through to **Approved** status
+2. Click **Webhook Export** — status changes to **Export**
+3. Webhook fires within a few seconds
+
+You can also automate this using the **Rules Engine** — create a rule that automatically sets documents to Export status when certain conditions are met, without any manual click required.

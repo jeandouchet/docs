@@ -1,0 +1,159 @@
+---
+title: "Uploading Documents"
+sidebarTitle: "Uploading Documents"
+description: "Every way to get documents into RecordEngine — web upload, email, watched folder, and API."
+---
+
+RecordEngine accepts documents through four channels. Use whichever fits your workflow — they all result in the same AI processing, confidence scoring, and structured extraction.
+
+---
+
+## Supported File Types
+
+| Category | Formats | Notes |
+|----------|---------|-------|
+| **PDF** | `.pdf` | Standard and scanned — OCR fallback activates automatically for scanned files |
+| **Images** | `.jpg`, `.jpeg`, `.png` | Vision AI reads directly from the image |
+| **Word documents** | `.docx` | Full text extraction |
+| **Spreadsheets** | `.xlsx`, `.csv` | Tabular data extraction |
+| **Text files** | `.txt`, `.html` | Full text extraction |
+| **Audio** | `.mp3`, `.wav`, `.m4a` | Transcribed locally, then extracted |
+
+<Info>
+  For documents with Chinese characters, stamps, or seals — including Fapiao and Business Licenses — RecordEngine uses vision-first extraction rather than text OCR, which handles stamps and handwriting that OCR-only tools miss.
+</Info>
+
+---
+
+## Method 1 — Web Upload (UI)
+
+The most common upload method for individual documents or small batches.
+
+<Steps>
+  <Step title="Go to the Upload page">
+    Click **Upload** in the left sidebar.
+  </Step>
+  <Step title="Select your files">
+    Drag and drop files onto the upload zone, or click **Browse** to select from your file system. You can select multiple files at once — each becomes a separate document.
+  </Step>
+  <Step title="Assign contact and folder">
+    Set:
+    - **Contact** — the client or vendor this document belongs to
+    - **Folder** — the folder within that contact (e.g. Q4 Invoices, Documents, Review)
+  </Step>
+  <Step title="Select an extraction profile">
+    Choose the profile that matches your document type. If the contact has a default profile set, it's pre-selected automatically.
+  </Step>
+  <Step title="Upload">
+    Click **Upload**. Documents appear in the list immediately with **New** status, then transition to **Processing** automatically.
+  </Step>
+</Steps>
+
+<img
+  src="/images/user-guide/upload-form.png"
+  alt="Document upload form with file selected and fields filled"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Upload form with a PDF file selected, contact and folder assigned, and extraction profile chosen — reuse from quick-start */}
+
+---
+
+## Method 2 — Email Intake
+
+Send any file as an email attachment to your RecordEngine intake address. No login required — documents land directly in the System → Inbox folder and process automatically.
+
+Best for:
+- Clients or vendors submitting documents without access to RecordEngine
+- Forwarding attachments from other email threads
+- Mobile capture (photograph a receipt, email it)
+
+Find your intake address at **Settings → Email Intake**.
+
+See the [Email Intake](/user-guide/email-intake) guide for full details.
+
+---
+
+## Method 3 — Hot Folder (Watch Folder)
+
+RecordEngine monitors a designated folder on the server's file system. Any file copied into that folder is automatically ingested — no UI interaction needed.
+
+Best for:
+- Bulk imports from a scanner or MFP (multi-function printer)
+- Automated file drops from other software
+- Legacy systems that export files to a directory
+
+The hot folder is configured in your `docker-compose.yml` and is active whenever the `xr-watcher` container is running. Contact your administrator for the hot folder path on your server.
+
+---
+
+## Method 4 — REST API
+
+Upload programmatically from any external system using the API. Ideal for automated pipelines where documents are generated or received by software — for example, uploading attachments received in a CRM, or exporting reports from an ERP.
+
+```bash
+curl -X POST https://YOUR-INSTANCE/api/documents/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@invoice.pdf" \
+  -F "contact_id=5" \
+  -F "folder_id=12" \
+  -F "profile_id=2"
+```
+
+See the [Documents API](/api-reference/documents) for the full request schema and code examples.
+
+---
+
+## Duplicate Detection
+
+RecordEngine checks for duplicate filenames within the same folder on upload. If a file with the same name already exists in the target folder, you're prompted to either:
+
+- **Upload as a new version** — links the new file to the existing document as version 2
+- **Upload as a separate document** — creates an independent new document
+
+See [Document Versioning](/user-guide/document-versioning) for how versioning works.
+
+---
+
+## Processing Time
+
+Once uploaded, documents transition through statuses automatically:
+
+| Status | Typical duration |
+|--------|----------------|
+| **New** | A few seconds — queued waiting for AI worker |
+| **Processing** | 10–45 seconds for clean PDFs and images |
+| **Processing** | 1–3 minutes for audio files (transcription first) |
+| **Processing** | 2–5 minutes for large multi-page PDFs |
+| **Needs Review** | Ready for human review |
+
+<Info>
+  The very first document after a server restart takes longer — typically 2–5 minutes — because the AI model loads into GPU memory. Every subsequent document processes much faster. Run a warmup document after any server restart to pre-load the model.
+</Info>
+
+---
+
+## Uploading Multiple Files
+
+You can upload multiple files in a single web upload operation:
+
+1. On the Upload page, select multiple files at once using Ctrl+Click or Shift+Click in the file picker
+2. All selected files share the same contact, folder, and profile assignment
+3. Each file becomes an independent document and processes in parallel
+
+For large batches (50+ files), the hot folder method is more reliable than web upload.
+
+---
+
+## What Happens After Upload
+
+Once a file is uploaded, RecordEngine automatically:
+
+1. Stores the original file in the document archive
+2. Detects the file type and chooses the appropriate extraction method (vision, text, audio transcription)
+3. Runs the AI extraction against the selected profile
+4. Generates an AI summary
+5. Calculates a confidence score
+6. Evaluates any matching Rules Engine rules
+7. Sets status to **Needs Review**
+
+The original file is always preserved — it is never modified or deleted by processing.

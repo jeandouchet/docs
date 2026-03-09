@@ -1,0 +1,147 @@
+---
+title: "Audit Log"
+sidebarTitle: "Audit Log"
+description: "A complete, tamper-evident record of every action taken on every document in your RecordEngine instance."
+---
+
+The **Audit Log** records every action that happens in RecordEngine — every upload, status change, field edit, rule trigger, webhook delivery, and user action — with a timestamp and the user who performed it. This gives you a full, searchable history of your document pipeline.
+
+<img
+  src="/images/user-guide/audit-log.png"
+  alt="RecordEngine Audit Log page"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Audit Log page showing a list of entries with different event types — include a rule trigger entry and a webhook delivery entry if possible */}
+
+---
+
+## What Gets Logged
+
+Every event in the following categories is recorded automatically:
+
+| Category | Events logged |
+|----------|--------------|
+| **Documents** | Upload, delete, new version upload |
+| **Status changes** | Every transition between statuses, with before and after values |
+| **Field edits** | Every change to an extracted field — old value and new value both stored |
+| **AI processing** | Extraction completed, confidence score assigned |
+| **Rules Engine** | Rule evaluated, conditions matched, action executed |
+| **Webhooks** | Outbound webhook fired, HTTP response code received |
+| **Users** | Login, logout, user created, password changed |
+| **Contacts & Folders** | Created, updated, deleted |
+| **Settings** | Webhook URL changed, API token regenerated |
+
+---
+
+## Viewing the Audit Log
+
+Click **Audit Log** in the left sidebar. Entries appear in reverse chronological order — most recent first.
+
+Each entry shows:
+- **Timestamp** — date and time of the event (server timezone)
+- **User** — who performed the action (or `System` for automated actions like AI processing and rule triggers)
+- **Event type** — what happened
+- **Document / Contact** — which record was affected (clickable — jumps to that record)
+- **Detail** — specific values changed, rule names, webhook response codes
+
+---
+
+## Filtering the Audit Log
+
+Use the filter bar at the top to narrow down entries:
+
+| Filter | Options |
+|--------|---------|
+| **User** | Filter to actions by a specific user |
+| **Event type** | Filter to a specific category (status change, field edit, rule trigger, etc.) |
+| **Date range** | Show entries from a specific period |
+| **Document** | Show all events for a specific document |
+| **Contact** | Show all events for a specific contact's documents |
+
+Combine multiple filters simultaneously to find exactly what you're looking for.
+
+<Tip>
+  For a compliance review, combine Contact + Date Range filters to produce a complete history of all actions on a specific client's documents over a given period — then export as PDF for the reviewer.
+</Tip>
+
+---
+
+## Searching the Audit Log
+
+The search bar performs full-text search across all event descriptions, document names, field values, and user names. Useful for finding:
+
+- All events related to a specific vendor: search for the vendor name
+- All actions on a specific invoice: search the invoice number
+- All rule executions for a specific rule: search the rule name
+
+---
+
+## Exporting the Audit Log
+
+### CSV Export
+
+Click **Export CSV** to download all currently filtered entries as a spreadsheet. Useful for:
+- Importing into Excel or Google Sheets for further analysis
+- Sending to an auditor who wants raw data
+- Building compliance reports
+
+The CSV includes all columns: timestamp, user, event type, document, contact, and full detail text.
+
+### PDF Export
+
+Click **Export PDF** to download a formatted, branded PDF report of the current filtered view. Useful for:
+- Formal compliance submissions
+- Client-facing audit reports
+- Signing off a period-end review
+
+The PDF includes your RecordEngine instance name, the filter criteria applied, and all audit entries in a clean table format.
+
+---
+
+## Audit Log for Compliance
+
+The audit log is designed to support compliance requirements in data-sensitive industries:
+
+<AccordionGroup>
+  <Accordion title="Financial Services & Accounting">
+    Every field edit is logged with before and after values — providing evidence that extracted data was not altered without a record. Status changes show the full approval chain from Needs Review through to Export.
+  </Accordion>
+  <Accordion title="China PIPL / DSL Compliance">
+    RecordEngine processes data locally — no transfers to cloud services. The audit log provides evidence of internal data handling for PIPL and DSL compliance reviews, showing who accessed what data and when.
+  </Accordion>
+  <Accordion title="General Data Audits">
+    The audit log retains all entries indefinitely. You can export a full history of any document, contact, or time period at any point — no data is automatically purged.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Rule Trigger Entries
+
+When a Rules Engine rule fires, the audit log entry includes:
+
+- The rule name
+- Which conditions matched (and their values at the time)
+- The action that was executed
+- Whether the action succeeded
+
+For example:
+```
+[System] Rule "Flag low confidence invoices" fired on document "acme-nov-invoice.pdf"
+Conditions matched: confidence_score (42) < 60
+Action: Set Status = Exception ✓
+```
+
+This gives you a clear trail of automated decisions — you can always see exactly why a document was moved to Exception or why a webhook was triggered.
+
+---
+
+## Webhook Delivery Entries
+
+When an outbound webhook fires, the audit log records:
+
+- The webhook URL it was sent to
+- The HTTP response code received
+- Whether the delivery succeeded or failed
+
+If a webhook returns a non-200 response, the failure is visible in the audit log — making it easy to diagnose integration issues without digging through server logs.

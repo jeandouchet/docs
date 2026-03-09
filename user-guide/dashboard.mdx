@@ -1,0 +1,108 @@
+---
+title: "Dashboard & Analytics"
+sidebarTitle: "Dashboard"
+description: "A real-time overview of everything happening in your RecordEngine instance."
+---
+
+The **Dashboard** is the first page you see after logging in. It gives you an instant snapshot of your document pipeline — what's waiting for review, what's been approved, what's flagged as an exception — so you know exactly where to focus your attention.
+
+<img
+  src="/images/user-guide/dashboard-metrics.png"
+  alt="RecordEngine Dashboard showing metric cards and activity chart"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Full dashboard screenshot showing metric cards at the top, the 14-day chart below, and the activity feed — ideally with realistic numbers */}
+
+---
+
+## Metric Cards
+
+The top row of the dashboard shows live counts across your entire RecordEngine instance:
+
+| Card | What it counts |
+|------|---------------|
+| **Pending Review** | Documents currently in **Needs Review** or **Missing Info** status — your active work queue |
+| **Ready** | Documents verified and marked Ready, waiting for final approval |
+| **Approved** | Documents formally approved and locked |
+| **Exported** | Documents that have reached Export status and triggered the outbound webhook |
+| **Exceptions** | Documents in Exception status — flagged by the AI, a rule, or a reviewer for attention |
+| **Total Documents** | All documents in the system across all statuses |
+
+Click any metric card to jump directly to a filtered document list showing only that status.
+
+---
+
+## 14-Day Upload Trend Chart
+
+The bar chart shows document upload volume over the past 14 days. Each bar represents one day — hover over a bar to see the exact count for that date.
+
+Use this chart to:
+- Spot periods of unusually high or low volume
+- Confirm that automated upload pipelines (email intake, API uploads) are running as expected
+- Identify days where a backlog may have built up
+
+---
+
+## Confidence Distribution
+
+Below the trend chart, a breakdown shows how your recent documents are distributed across confidence bands:
+
+- 🟢 High (90–100)
+- 🔵 Good (70–89)
+- 🟡 Low (50–69)
+- 🔴 Poor (0–49)
+
+If you're seeing a large proportion of Low or Poor documents, it typically means one of:
+- The extraction profile doesn't match the document format well — consider creating a custom profile
+- Document quality is low — encourage senders to scan at higher resolution
+- A new document type is entering the system that needs its own profile
+
+---
+
+## Recent Activity Feed
+
+The right side of the dashboard shows a real-time log of recent actions across the system — uploads, status changes, approvals, rule triggers, and webhook deliveries. This gives a team-level view of what's happening without needing to open the full Audit Log.
+
+<Tip>
+  If you're expecting a document to have arrived via email intake or API and don't see it in a folder, check the Recent Activity feed first — it will show the upload event even if something went wrong with assignment.
+</Tip>
+
+---
+
+## Quick Actions
+
+The dashboard includes quick-action buttons for the most common tasks:
+
+| Button | What it does |
+|--------|-------------|
+| **Upload Document** | Opens the Upload page directly |
+| **New Contact** | Opens the New Contact form |
+| **View Pending** | Jumps to the document list filtered to Needs Review |
+| **View Exceptions** | Jumps to the document list filtered to Exception |
+
+---
+
+## Using the Dashboard for Daily Workflow
+
+A practical daily workflow using the dashboard:
+
+<Steps>
+  <Step title="Check exceptions first">
+    Click the **Exceptions** card. Review any flagged documents — these were automatically identified as needing attention by the AI or a Rules Engine rule.
+  </Step>
+  <Step title="Work through pending review">
+    Click **Pending Review**. Sort by confidence score (lowest first) to tackle the most uncertain documents while you're fresh. High-confidence documents at the end can often be batch-approved quickly.
+  </Step>
+  <Step title="Batch approve the ready queue">
+    Click **Ready**. Select all and batch-approve if the documents have been pre-vetted. This moves them to Approved and prepares them for export.
+  </Step>
+  <Step title="Export to external systems">
+    Select all Approved documents and batch-export. This triggers the outbound webhook for each document, pushing structured data to QuickBooks, Salesforce, or your ERP.
+  </Step>
+</Steps>
+
+---
+
+## Dashboard Reflects All Users
+
+If multiple users are active on the same RecordEngine instance, the dashboard shows totals across all users and all contacts. There is no per-user filtering on the dashboard — use [Advanced Search](/user-guide/advanced-search) to filter by specific contacts, folders, or date ranges.
