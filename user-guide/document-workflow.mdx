@@ -1,0 +1,175 @@
+---
+title: "Document Workflow"
+sidebarTitle: "Document Workflow"
+description: "How documents move through RecordEngine — the 9 statuses, what each means, and how to manage transitions."
+---
+
+Every document in RecordEngine has a **status** that tells you exactly where it is in the review and approval process. Understanding the workflow is the key to getting the most out of the platform.
+
+<img
+  src="/images/user-guide/document-list-statuses.png"
+  alt="Document list showing various status badges"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Document list in folder view showing at least 4-5 documents with different coloured status badges */}
+
+---
+
+## The 9 Statuses
+
+<AccordionGroup>
+  <Accordion title="🆕 New">
+    The document has just been uploaded or received (via web upload, hot folder, or email intake). It is sitting in the queue waiting for the AI worker to pick it up. You don't need to do anything — processing starts automatically within seconds.
+  </Accordion>
+  <Accordion title="⚙️ Processing">
+    The AI is actively reading the document. For a clean PDF this takes 10–30 seconds. For a scanned image or audio file it may take longer. The first document after a server restart takes a few minutes while the AI model loads into GPU memory.
+  </Accordion>
+  <Accordion title="👁️ Needs Review">
+    AI extraction is complete. The document is waiting for a human to verify the extracted fields and approve it. **This is your main working status** — most of your time in RecordEngine is spent here.
+  </Accordion>
+  <Accordion title="❓ Missing Info">
+    A reviewer has flagged that the document is incomplete or that required information could not be extracted — for example, a vendor name is missing from a damaged scan. Move the document back to Needs Review once the issue is resolved.
+  </Accordion>
+  <Accordion title="✅ Ready">
+    A reviewer has checked the extracted fields and confirmed they are correct. The document is ready to be formally approved.
+  </Accordion>
+  <Accordion title="🔒 Approved">
+    The document has been formally approved and is **locked against further edits**. This is the sign-off status — it means a human has verified the data and taken responsibility for its accuracy.
+  </Accordion>
+  <Accordion title="📤 Export">
+    The document has been approved and is being sent to an external system. Setting a document to Export status triggers the outbound webhook — RecordEngine POSTs the full structured payload to your configured webhook URL. This is how data flows to QuickBooks, Xero, Salesforce, or any other system.
+  </Accordion>
+  <Accordion title="⚠️ Exception">
+    Something went wrong during processing, or a Rules Engine rule has flagged this document for manual attention. Check the AI summary and confidence score to understand the issue.
+  </Accordion>
+  <Accordion title="🗄️ Archived">
+    The document is no longer active and has been removed from the default document view. Archived documents are retained in the database and can be retrieved via Advanced Search with the Archived filter applied.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Status Flow
+
+The typical path for a clean document:
+
+```
+New → Processing → Needs Review → Ready → Approved → Export
+```
+
+Documents with issues may travel a different path:
+
+```
+New → Processing → Needs Review → Missing Info → Needs Review → Ready → Approved
+New → Processing → Exception → (manual investigation) → Needs Review → ...
+```
+
+<img
+  src="/images/user-guide/document-workflow-diagram.png"
+  alt="Document workflow status diagram"
+  className="rounded-lg"
+/>
+{/* 📸 DIAGRAM NEEDED: Simple flow diagram showing the status transitions — can be created in draw.io or Figma */}
+
+---
+
+## Working with Documents
+
+### Opening a document
+
+Click any document in the list to open the **workspace** — a three-panel view showing the original document on the left, AI summary and metadata in the centre, and extracted fields and actions on the right.
+
+<img
+  src="/images/user-guide/workspace-3-panel.png"
+  alt="RecordEngine workspace — three panel view"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Workspace with a document open showing all three panels */}
+
+### Editing extracted fields
+
+If any field needs correction:
+
+1. Click **Edit** in the right panel
+2. Click on a field value and type the correct value
+3. Click **Save**
+
+<Warning>
+  Fields can only be edited while the document is in **Needs Review**, **Missing Info**, or **Ready** status. Once a document is **Approved**, it is locked. An Admin can revert the status if a correction is needed post-approval.
+</Warning>
+
+### Adding notes
+
+Use the **Notes** field at the bottom of the right panel to add free-text context — for example, *"Client confirmed this is a duplicate — do not export"* or *"Tax amount includes import duty."* Notes are searchable and appear in the Audit Log.
+
+### Moving to a different folder
+
+In the right panel, use the **Move to Folder** action to reassign the document to any folder under any contact. This is useful when a document arrives in a general inbox and needs to be filed under a specific client.
+
+---
+
+## Approving Documents
+
+### Single document approval
+
+With a document open in Needs Review status:
+
+1. Verify all extracted fields are correct
+2. Click **Mark as Ready** — status changes to Ready
+3. Click **Approve** — status changes to Approved and the document locks
+
+### Batch approval
+
+To approve multiple documents at once:
+
+1. In the document list, tick the checkbox on each document you want to approve
+2. Click **Batch Actions → Approve**
+3. All selected documents move to Approved simultaneously
+
+<img
+  src="/images/user-guide/batch-approve.png"
+  alt="Batch approval — selecting multiple documents"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Document list with 3 documents checked and the batch actions menu open */}
+
+<Tip>
+  Use **Advanced Search** to filter documents by status before batch-approving. For example, filter by Status = Ready and confidence_score ≥ 80 to approve your high-confidence documents in one click, while keeping the uncertain ones for individual review.
+</Tip>
+
+---
+
+## Exporting Documents
+
+Setting a document to **Export** status fires the outbound webhook. This is the trigger that sends structured data to your external systems.
+
+1. With an Approved document open, click **Webhook Export**
+2. Status changes to Export
+3. If a webhook URL is configured in Settings, RecordEngine sends an HTTP POST within seconds containing all extracted fields, line items, confidence score, and any CRM correlation references
+
+See [Outbound Webhooks](/api-reference/webhooks) for the full payload schema, and [Integrations](/integrations/overview) for how to connect to specific systems.
+
+---
+
+## Document Versioning
+
+If a document needs to be replaced with a corrected version:
+
+1. Open the document
+2. Click **Upload New Version**
+3. Select the replacement file
+4. The original is retained in version history — click **Version History** to view and compare all versions
+
+Version badges (v1, v2, v3...) appear in the document list so you can always tell which version you're looking at.
+
+---
+
+## Automating Status Transitions
+
+The **Rules Engine** can automatically move documents between statuses based on conditions — for example:
+
+- Low confidence score → automatically set to Exception
+- High confidence score → automatically move to Ready
+- Specific vendor name → automatically move to a specific folder
+
+See [Rules Engine](/user-guide/rules-engine) to set this up.

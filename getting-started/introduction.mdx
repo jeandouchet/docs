@@ -1,0 +1,118 @@
+---
+title: "Introduction"
+sidebarTitle: "Introduction"
+description: "What RecordEngine is, how it works, and why enterprises choose it for document intelligence."
+---
+
+<img
+  src="/images/getting-started/dashboard-overview.png"
+  alt="RecordEngine dashboard overview"
+  className="rounded-lg"
+/>
+
+{/* 📸 SCREENSHOT NEEDED: Full dashboard screenshot with 20+ documents at various statuses visible */}
+
+## What is RecordEngine?
+
+RecordEngine is an **AI-powered document processing platform** that runs entirely on your own hardware — inside your office, your data centre, or your private cloud server. It reads any document you throw at it (invoices, contracts, receipts, meeting notes, audio recordings), extracts the structured data automatically using a locally-hosted AI model, and feeds that data directly into your existing systems via webhooks and a REST API.
+
+No document ever leaves your network. No cloud subscription. No per-page fees.
+
+<Info>
+  RecordEngine's tagline is **"Cut the Cloud. Keep the Intelligence."** — the AI runs locally on your GPU, not on a third-party server.
+</Info>
+
+## How it works
+
+<Steps>
+  <Step title="A document enters RecordEngine">
+    Via web upload, a watched hot folder, or email attachment — RecordEngine detects a new file and queues it for processing.
+  </Step>
+  <Step title="The AI reads and extracts">
+    A locally-hosted multimodal AI model reads the document — whether it's a clean PDF, a photo of a receipt, a scanned contract, or an audio recording. It extracts every relevant field, generates a plain-language summary, and assigns a confidence score.
+  </Step>
+  <Step title="You review and approve">
+    The extracted data appears in a clean three-panel interface. You verify the fields, correct anything the AI missed, and approve the document. Documents with low confidence scores are automatically flagged for priority review.
+  </Step>
+  <Step title="Your systems get the data">
+    The moment a document is approved, RecordEngine fires an outbound webhook with the full structured payload — vendor, date, amounts, line items, confidence score, and any CRM correlation IDs. Your ERP, CRM, or accounting system receives clean structured data without any manual re-entry.
+  </Step>
+</Steps>
+
+## What makes it different
+
+<CardGroup cols={2}>
+  <Card title="Fully Offline" icon="wifi-slash">
+    Every AI inference call goes to a model running on your own GPU. Nothing touches the internet after installation. Designed for environments with strict data residency requirements.
+  </Card>
+  <Card title="No Per-Document Pricing" icon="tag">
+    One hardware purchase, one annual software licence. Process 10 documents a day or 10,000 — the cost is the same. No token fees, no page fees, no seat fees.
+  </Card>
+  <Card title="Model-Agnostic" icon="microchip">
+    The AI model is swappable. RecordEngine ships with a best-in-class open-source model, but you can substitute any Ollama-compatible model without touching the platform code.
+  </Card>
+  <Card title="Integration-First" icon="plug">
+    Every document, field, and event is accessible via REST API and outbound webhooks. Bidirectional CRM correlation is built in — not bolted on.
+  </Card>
+</CardGroup>
+
+## Supported file types
+
+RecordEngine processes all of the following natively — no plug-ins or additional software required:
+
+| Category | Formats |
+|----------|---------|
+| Documents | PDF, DOCX, TXT, HTML |
+| Images | JPG, JPEG, PNG |
+| Spreadsheets | XLSX, CSV |
+| Audio | MP3, WAV, M4A |
+
+<Tip>
+  For PDF and image documents containing Chinese characters, stamps, or seals, RecordEngine uses vision-first extraction rather than text OCR — ensuring accurate results on documents that OCR-only tools struggle with.
+</Tip>
+
+## Built for data-sensitive environments
+
+RecordEngine is used by organisations where document data is too sensitive for cloud processing:
+
+<AccordionGroup>
+  <Accordion title="Accounting & Financial Services">
+    Process client invoices, receipts, and financial statements without sending financial data to third-party cloud APIs. Structured output flows directly to QuickBooks, Xero, or your own ERP via webhook.
+  </Accordion>
+  <Accordion title="Law Firms">
+    Contract review, court document processing, and client file management — all processed on your own infrastructure, with a full audit log of every action taken on every document.
+  </Accordion>
+  <Accordion title="Multinational Corporations in China">
+    RecordEngine is fully compliant with China's PIPL, DSL, and CSL data residency requirements. Documents processed in China stay in China. Built-in support for Chinese Fapiao (发票) and Business License (营业执照) extraction.
+  </Accordion>
+  <Accordion title="Healthcare">
+    Patient records, insurance claims, and referral letters processed locally — no PHI leaving your network.
+  </Accordion>
+  <Accordion title="Government & Defence">
+    Air-gap installation available. Deploy from a USB bundle with no internet connection required at any point during installation or operation.
+  </Accordion>
+</AccordionGroup>
+
+## Platform at a glance
+
+| | |
+|---|---|
+| **Version** | 2.5.5 |
+| **Extraction profiles** | 7 built-in + unlimited custom |
+| **Document statuses** | 9 (New → Processing → Needs Review → Ready → Approved → Export → Exception → Missing Info → Archived) |
+| **API** | REST API + outbound webhooks |
+| **AI model** | Locally-hosted, open-source multimodal model |
+| **Supported languages** | English, Chinese (Simplified), and any language supported by the underlying model |
+| **Deployment** | Docker (Linux or Windows), private cloud, or air-gap USB bundle |
+| **Authentication** | Multi-user, role-based (Admin / User) |
+
+## Ready to get started?
+
+<CardGroup cols={2}>
+  <Card title="System Requirements" icon="server" href="/getting-started/system-requirements">
+    Check hardware and software requirements before installing.
+  </Card>
+  <Card title="Quick Start Tutorial" icon="play" href="/getting-started/quick-start">
+    Get from zero to your first processed document in under 10 minutes.
+  </Card>
+</CardGroup>

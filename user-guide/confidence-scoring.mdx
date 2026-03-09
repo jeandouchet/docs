@@ -1,0 +1,158 @@
+---
+title: "AI Confidence Scoring"
+sidebarTitle: "Confidence Scoring"
+description: "How RecordEngine scores every document and how to use that score in your review workflow."
+---
+
+Every document RecordEngine processes receives an **AI confidence score** from 0 to 100. This score tells you how certain the AI is that it correctly extracted all the important fields — so you can focus your review time where it actually matters instead of manually checking every document.
+
+---
+
+## How the Score is Calculated
+
+The confidence score is generated in the **same AI pass as field extraction** — there are no extra processing steps or API calls. The AI evaluates:
+
+- Whether all expected fields from the extraction profile were found
+- Whether the values found are plausible (e.g. a date that looks like a date, an amount that looks like an amount)
+- Whether line item subtotals add up to the stated total
+- Whether the document quality is sufficient (blur, rotation, partial scan, low contrast)
+- Whether the document language and format matched the selected extraction profile
+
+<Info>
+  Confidence scoring is automatic on every document. There is nothing to configure — just upload and the score appears.
+</Info>
+
+---
+
+## Score Bands
+
+| Score | Label | Badge colour | What it typically means |
+|-------|-------|-------------|------------------------|
+| 90–100 | **High** | 🟢 Green | Clear document, all expected fields found and plausible |
+| 70–89 | **Good** | 🔵 Blue | Minor uncertainty on one or two fields — quick check recommended |
+| 50–69 | **Low** | 🟡 Yellow | Several fields uncertain or missing — careful review required |
+| 0–49 | **Poor** | 🔴 Red | Significant extraction problems — manual data entry likely needed |
+
+---
+
+## Where the Score Appears
+
+### In the document list
+
+The badge appears next to every document filename so you can spot low-confidence documents at a glance without opening them.
+
+<img
+  src="/images/user-guide/confidence-score-badge.png"
+  alt="Confidence score badges in the document list"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Document list showing multiple documents with different coloured confidence badges (ideally one of each colour) */}
+
+### In the document detail panel
+
+Open any document and the full score, label, and AI reasoning text appear below the AI Summary in the centre panel.
+
+<img
+  src="/images/user-guide/confidence-score-detail.png"
+  alt="Confidence score reasoning in the document detail panel"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Centre panel of workspace showing the confidence score badge + the reasoning paragraph below the AI summary */}
+
+---
+
+## Reading the AI Reasoning
+
+Below the score badge you'll see a plain-language explanation from the AI. For example:
+
+> *"Clear invoice with all 8 required fields present. Line items sum correctly to the stated total of ¥12,450. High confidence."*
+
+> *"Vendor name and invoice number extracted successfully, but the invoice date field appears partially cut off at the bottom of the page. Stated total does not match sum of line items — difference of ¥120. Moderate confidence."*
+
+> *"Document appears to be a blurry photograph of a handwritten receipt. Several fields could not be read with certainty. Manual verification strongly recommended."*
+
+This reasoning tells you **exactly which field to check** rather than making you re-read the whole document.
+
+---
+
+## Using Confidence Scores in Your Workflow
+
+### Prioritise your review queue
+
+Sort the document list by confidence score (lowest first) to tackle your most uncertain documents at the start of the day. High-confidence documents can often be approved quickly without line-by-line verification.
+
+### Filter in Advanced Search
+
+In the **Advanced Search** page, use the **Confidence Level** filter to show only Low or Poor documents. Combine with a date range or contact filter to focus on a specific batch.
+
+<img
+  src="/images/user-guide/search-confidence-filter.png"
+  alt="Advanced Search with confidence level filter applied"
+  className="rounded-lg"
+/>
+{/* 📸 SCREENSHOT NEEDED: Advanced Search page with the Confidence Level filter set to Low or Poor */}
+
+### Connect to the Rules Engine
+
+Confidence score is one of the most powerful condition fields in the Rules Engine. Some useful rules:
+
+<CodeGroup>
+```text Auto-flag low confidence
+IF confidence_score < 60
+→ Set Status = Exception
+→ Send Notification to reviewer
+```
+
+```text Fast-track high confidence
+IF confidence_score >= 90
+→ Set Status = Ready
+→ Move to "Fast Track" folder
+```
+
+```text Notify on poor extraction
+IF confidence_score < 40
+→ Send Notification: "Poor extraction — manual entry needed"
+→ Set Status = Missing Info
+```
+</CodeGroup>
+
+See [Rules Engine](/user-guide/rules-engine) for how to create these automations.
+
+---
+
+## Confidence Score in Outbound Webhooks
+
+The confidence score and label are included automatically in every outbound webhook payload — so your downstream systems can make decisions based on extraction quality:
+
+```json
+{
+  "id": 847,
+  "filename": "acme-invoice-nov-2025.pdf",
+  "status": "Export",
+  "confidence_score": 87,
+  "confidence_label": "Good",
+  "confidence_reasoning": "All 8 fields extracted. Line items sum correctly. Minor uncertainty on tax rate field.",
+  "extracted_fields": {
+    "vendor": "Acme Corporation",
+    "invoice_number": "INV-2025-1147",
+    "invoice_date": "2025-11-15",
+    "total_amount": "12450.00",
+    "currency": "CNY"
+  }
+}
+```
+
+---
+
+## Tips for Improving Confidence Scores
+
+<Tip>
+  If you're consistently seeing low scores on a particular document type, the most common fix is to create a **custom extraction profile** with field labels that match exactly what's in your documents. The AI performs significantly better when the profile is tailored to the document format.
+</Tip>
+
+| Issue | Fix |
+|-------|-----|
+| Low scores on scanned documents | Scan at 300 DPI minimum — higher resolution dramatically improves vision extraction |
+| Chinese documents scoring low | Make sure you're using the **Chinese Fapiao** or **Chinese Business License** profile, not the Default profile |
+| Line item totals mismatch | Check if the document includes taxes, discounts, or fees that aren't in a standard line item row |
+| Audio transcriptions scoring low | Use a quiet recording environment — background noise reduces transcription quality |
