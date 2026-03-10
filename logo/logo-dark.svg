@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <!-- Colors -->
+  <defs>
+    <style>
+      .bg { fill:#7a1b16; }
+      .gold { fill:#d4a843; }
+      .stroke { stroke:#d4a843; stroke-width:6; fill:none; }
+      .thin { stroke:#d4a843; stroke-width:3; }
+      .text { fill:#d4a843; font-family: serif; font-weight:700; }
+      .small { font-size:28px; letter-spacing:6px; }
+      .big { font-size:140px; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="512" height="512" class="gold"></rect>
+  <rect x="12" y="12" width="488" height="488" class="bg"></rect>
+
+  <!-- Inner border -->
+  <rect x="28" y="28" width="456" height="456" class="stroke"></rect>
+
+  <!-- Center Text -->
+  <text x="256" y="260" text-anchor="middle" class="text big">RE</text>
+
+  <!-- Divider line -->
+  <line x1="190" y1="300" x2="322" y2="300" class="thin"></line>
+
+  <!-- AI text -->
+  <text x="256" y="330" text-anchor="middle" class="text small">AI</text>
+
+  <!-- Corner motif function (drawn manually) -->
+
+  <!-- Top Left -->
+  <g transform="translate(60,60)">
+    <rect width="14" height="14" class="gold"></rect>
+    <rect x="22" width="14" height="14" class="gold"></rect>
+    <rect y="22" width="14" height="14" class="gold"></rect>
+    <rect x="22" y="22" width="14" height="14" class="gold"></rect>
+  </g>
+
+  <!-- Top Right -->
+  <g transform="translate(438,60)">
+    <rect width="14" height="14" class="gold"></rect>
+    <rect x="-22" width="14" height="14" class="gold"></rect>
+    <rect y="22" width="14" height="14" class="gold"></rect>
+    <rect x="-22" y="22" width="14" height="14" class="gold"></rect>
+  </g>
+
+  <!-- Bottom Left -->
+  <g transform="translate(60,438)">
+    <rect width="14" height="14" class="gold"></rect>
+    <rect x="22" width="14" height="14" class="gold"></rect>
+    <rect y="-22" width="14" height="14" class="gold"></rect>
+    <rect x="22" y="-22" width="14" height="14" class="gold"></rect>
+  </g>
+
+  <!-- Bottom Right -->
+  <g transform="translate(438,438)">
+    <rect width="14" height="14" class="gold"></rect>
+    <rect x="-22" width="14" height="14" class="gold"></rect>
+    <rect y="-22" width="14" height="14" class="gold"></rect>
+    <rect x="-22" y="-22" width="14" height="14" class="gold"></rect>
+  </g>
+
+</svg>
