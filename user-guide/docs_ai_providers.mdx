@@ -1,0 +1,151 @@
+---
+title: "AI Providers"
+description: "Configure RecordEngine to use local or cloud AI models for document extraction, OCR, and chat."
+---
+
+## Overview
+
+RecordEngine supports five AI providers, all configurable from **Settings → AI Backend** without any code changes or server restarts required.
+
+| Provider | Type | Best For |
+|----------|------|---------|
+| Local (Ollama) | On-premise | Maximum privacy, air-gapped deployments |
+| OpenAI | Cloud BYOK | High accuracy, proven reliability |
+| Claude (Anthropic) | Cloud BYOK | Multilingual, nuanced reasoning |
+| Qwen API | Cloud BYOK | Chinese documents |
+| Gemini (Google) | Cloud BYOK | Best cost/performance ratio |
+
+---
+
+## Switching Providers
+
+1. Go to **Settings → AI Backend**
+2. Select a provider from the dropdown
+3. Enter your API key (cloud providers only)
+4. Click **💾 Save**
+5. Click **🧪 Test Connection** to verify
+
+API keys are stored locally in the RecordEngine database on your server. They are never transmitted anywhere except to the selected AI provider.
+
+---
+
+## Provider Details
+
+### Local (Ollama)
+
+Fully offline inference on your GPU. No API key required. No data leaves your network.
+
+**Default models:**
+
+| Task | Model |
+|------|-------|
+| Extraction / structured output | qwen3.5:9b |
+| Vision / OCR | qwen3.5:9b |
+| Chat | qwen3.5:9b |
+
+**Requirements:** GPU instance with NVIDIA drivers and Ollama installed. The deploy script handles this automatically for GPU-mode deployments.
+
+**Processing modes:**
+- **Precise** — uses qwen3.5:27b for text tasks (higher accuracy, slower)
+- **Fast** — uses qwen3.5:9b for all tasks (default, recommended)
+
+---
+
+### OpenAI
+
+**Default model:** `gpt-4o`  
+**API key:** Get yours at [platform.openai.com](https://platform.openai.com)  
+**Pricing:** ~$2.50 / 1M input tokens, $10.00 / 1M output tokens
+
+GPT-4o handles vision and structured extraction with high accuracy. This is the recommended provider for GPU-mode pilots.
+
+---
+
+### Claude (Anthropic)
+
+**Default model:** `claude-sonnet-4-5`  
+**API key:** Get yours at [console.anthropic.com](https://console.anthropic.com)  
+**Pricing:** ~$3.00 / 1M input tokens, $15.00 / 1M output tokens
+
+Strong at multilingual documents including Chinese text and nuanced reasoning for AI chat.
+
+---
+
+### Qwen API
+
+**Default models:** `qwen-max` (text), `qwen-vl-max` (vision)  
+**API key:** Get yours at [dashscope.aliyun.com](https://dashscope.aliyun.com)  
+**Pricing:** ~$0.50 / 1M input tokens
+
+Best performance on Chinese-language documents. Uses Alibaba's DashScope infrastructure — note this for security-conscious prospects even though data stays within Alibaba Cloud.
+
+---
+
+### Gemini (Google)
+
+**Default model:** `gemini-2.5-flash-preview-04-17`  
+**API key:** Get yours at [aistudio.google.com](https://aistudio.google.com)  
+**Pricing:** ~$0.30 / 1M input tokens, $2.50 / 1M output tokens
+
+Recommended for API-mode (BYOK) deployments where cost efficiency matters. Gemini delivers extraction quality comparable to GPT-4o at approximately 5x lower cost. Excellent OCR performance on handwritten and complex document layouts.
+
+**To use Gemini 3 Flash**, enter `gemini-3-flash-preview` in the model override field.
+
+---
+
+## Model Override
+
+To use a specific model instead of the provider default:
+
+1. Go to **Settings → AI Backend**
+2. Enter the model name in the **Model override** field
+3. Save
+
+Examples:
+- OpenAI: `gpt-4o-mini` (cheaper, lower accuracy)
+- Claude: `claude-haiku-4-5` (faster, cheaper)
+- Gemini: `gemini-3-flash-preview` (latest generation)
+
+Leave the field blank to use the provider default.
+
+---
+
+## Fallback to Local
+
+When a cloud provider is configured, you can enable automatic fallback to your local GPU if the cloud API is unavailable:
+
+1. Enable **Fallback to Local GPU if cloud is unavailable** in Settings → AI Backend
+2. Save
+
+This requires a GPU instance with Ollama running. Not applicable to API-mode deployments.
+
+---
+
+## Architecture
+
+All AI calls are routed through `app/ai_router.py`. The three public functions are:
+
+```python
+ai_router.ai_generate(task, prompt)        # structured extraction, summaries
+ai_router.ai_vision(image_path, prompt)    # OCR, image analysis
+ai_router.ai_chat(messages, system_prompt) # multi-turn document chat
+```
+
+Provider selection and API keys are read from the database on every call — no restart required when switching providers.
+
+**Retry logic:** All cloud calls use 3-attempt retry with 2-second delay. Authentication errors (401/403) skip retry immediately.
+
+---
+
+## Per-Provider API Key Storage
+
+Each provider's key is stored independently:
+
+| Setting key | Provider |
+|------------|---------|
+| `ai_api_key_openai` | OpenAI |
+| `ai_api_key_claude` | Claude |
+| `ai_api_key_qwen_api` | Qwen API |
+| `ai_api_key_gemini` | Gemini |
+
+Switching providers never overwrites another provider's key.

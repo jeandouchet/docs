@@ -1,0 +1,108 @@
+---
+title: "Case Management"
+description: "Track document review work items, assign them to team members, and automate resolution workflows."
+---
+
+## Overview
+
+Cases are work items linked to documents that require human attention. They are created automatically by the Rules Engine or manually by any user.
+
+Navigate to **Cases** in the sidebar to view and manage your case queue.
+
+---
+
+## Case Statuses
+
+| Status | Meaning |
+|--------|---------|
+| New | Just created, awaiting assignment |
+| Ready | Assigned and ready for action |
+| In Progress | Actively being worked on |
+| Backlog | Deprioritised, not urgent |
+| Resolved | Work complete |
+| Closed | Archived, no further action |
+
+---
+
+## Case Priority
+
+Cases have three priority levels calculated by the AI priority scoring system:
+
+| Priority | AI Score | Indicators |
+|----------|----------|-----------|
+| High 🔥 | 70+ | Overdue, high-value invoice, urgent flag |
+| Medium ⚡ | 40–69 | Standard review required |
+| Low | < 40 | Informational, non-urgent |
+
+Priority is computed from: base priority weight + due date urgency + case age.
+
+---
+
+## Creating Cases
+
+### Automatically (Rules Engine)
+
+The most common path. Configure a rule with action `create_case`:
+
+1. Go to **Rules Engine → New Rule**
+2. Set trigger (document event or case event)
+3. Set conditions (e.g. confidence_score < 70)
+4. Set action to **Create Case** and choose priority
+
+### Manually
+
+From any document detail view:
+1. Scroll to the **Cases** section
+2. Click **➕ Create Case for this Document**
+3. Fill in title, priority, assignee, due date
+
+---
+
+## Batch Operations
+
+Select multiple cases using the checkboxes to act on them at once:
+
+- **Change Status** — select a status from the dropdown and click Apply
+- **Change Priority** — select a priority and click Apply
+- **Delete** — permanently removes selected cases (requires confirmation)
+
+Use **Select All** at the top to select all cases matching the current filter.
+
+---
+
+## Filtering the Queue
+
+Use the filter dropdowns at the top of the Cases page:
+
+- **Status** — filter by case status
+- **Priority** — filter by High / Medium / Low
+- **Assignee** — filter by team member, or select "Mine" to see only your cases
+
+---
+
+## Case Events & Automation
+
+When a case status changes, the Rules Engine can fire automatically.
+
+See [Rules Engine → Case Events](/rules-engine#case-event) for full documentation on building case-driven workflows.
+
+**Common pattern:** case resolved → document approved → webhook to accounting system.
+
+---
+
+## REST API
+
+Cases are fully accessible via the REST API. Base path: `/api/v1/cases/`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/cases/` | List cases (filterable) |
+| POST | `/api/v1/cases/` | Create a case |
+| GET | `/api/v1/cases/{id}` | Get case by ID |
+| PATCH | `/api/v1/cases/{id}` | Update case fields |
+| DELETE | `/api/v1/cases/{id}` | Delete a case |
+| POST | `/api/v1/cases/{id}/notes` | Add a note |
+| GET | `/api/v1/cases/document/{doc_id}` | Get cases for a document |
+| GET | `/api/v1/cases/stats` | Aggregate case statistics |
+
+Full API documentation available at `https://yourinstance.recordengine.ai/api/docs`.

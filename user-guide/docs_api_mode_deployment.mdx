@@ -1,0 +1,184 @@
+---
+title: "API-Mode Deployment"
+description: "Deploy RecordEngine on a CPU-only cloud instance for customers who bring their own AI API keys."
+---
+
+## Overview
+
+API-mode is a lightweight deployment option for customers who want RecordEngine in the cloud without the cost of a GPU instance.
+
+| | GPU Mode | API Mode |
+|-|----------|----------|
+| AI inference | Local (Ollama on GPU) | Cloud API (customer's key) |
+| Monthly cost | ~$730/month (g5.xlarge) | ~$110/month (t3a.xlarge) |
+| Provisioning time | ~20 minutes | ~5 minutes (from AMI) |
+| Data sovereignty | Full (on-premise) | API provider's terms |
+| Feature parity | Full | Full |
+
+---
+
+## Prerequisites
+
+- AWS account with EC2 access
+- Cloudflare DNS access for `recordengine.ai`
+- SSH key: `xr-platform-key.pem`
+- Customer's API key (OpenAI, Claude, Gemini, or Qwen)
+
+---
+
+## Deploy a New Customer Instance
+
+### Step 1 — Launch EC2 from Golden AMI
+
+In the AWS console:
+
+1. Go to **EC2 → AMIs** → find `recordengine-api-v3`
+2. Click **Launch instance from AMI**
+3. Instance type: `t3a.xlarge` (4 vCPU, 16 GB RAM)
+4. Storage: **100 GiB gp3**
+5. Key pair: `xr-platform-key`
+6. Security group: allow ports 22, 80, 443 inbound
+7. Launch
+
+### Step 2 — SSH In
+
+```bash
+ssh -i C:\Users\jeand\.ssh\xr-platform-key.pem ubuntu@<NEW_IP>
+```
+
+### Step 3 — Pull Latest Code
+
+```bash
+sudo chown -R ubuntu:ubuntu /opt/xr
+git -C /opt/xr pull
+```
+
+### Step 4 — Start Containers
+
+```bash
+cd /opt/xr/cloud
+docker compose -f docker-compose.api.yml up -d
+```
+
+### Step 5 — DNS
+
+In Cloudflare, create an A record:
+- **Name:** `clientname`
+- **Target:** new instance IP
+- **Proxy:** DNS only (grey cloud — NOT orange)
+
+### Step 6 — SSL
+
+```bash
+sudo certbot --nginx -d clientname.recordengine.ai \
+  --email admin@recordengine.ai \
+  --agree-tos --non-interactive --redirect
+```
+
+### Step 7 — Customer Setup
+
+Share the URL with the customer. On first login they will:
+1. Create their admin account
+2. Go to **Settings → AI Backend** → select provider → enter API key → Save
+3. Go to **Settings → General → 🔗 Server URL** → enter their URL → Save
+
+---
+
+## Managing the Instance
+
+All management uses the `xr` CLI. The CLI automatically detects API mode via `/opt/xr/.deploy_mode`.
+
+```bash
+xr status          # container status, mode, disk, DB
+xr doctor          # health check
+xr update          # git pull + restart + self-update CLI
+xr restart-watcher # restart background worker
+xr backup          # SQLite backup
+xr test            # run 80-test suite
+xr logs [name]     # tail container logs
+```
+
+`xr update` on the API instance will never start the Ollama container — it reads `.deploy_mode` and uses `docker-compose.api.yml` automatically.
+
+---
+
+## Seed Scripts
+
+After the first `xr update`, run the seed scripts to populate extraction profiles and default rules:
+
+```bash
+docker exec xr-ui python /app/seed_profiles.py
+docker exec xr-ui python /app/seed_accounting_profiles.py
+docker exec xr-ui python /app/seed_healthcare_profiles.py
+docker exec xr-ui python /app/seed_default_rules.py
+```
+
+These are idempotent — safe to re-run at any time.
+
+---
+
+## Architecture
+
+The API-mode compose file (`cloud/docker-compose.api.yml`) runs three services:
+
+| Container | Port | Purpose |
+|-----------|------|---------|
+| `xr-ui` | 8501 | Streamlit web interface |
+| `xr-watcher` | — | Background AI processing worker |
+| `xr-api` | 8510 | FastAPI REST API |
+
+The Ollama and ollama-warmup services are absent. All AI calls route through `ai_router.py` to the customer's configured API provider.
+
+---
+
+## Golden AMI
+
+The `recordengine-api-v3` AMI contains:
+
+- Ubuntu 24.04 LTS
+- Docker + Docker Compose installed
+- RecordEngine repo cloned at `/opt/xr`
+- Pre-built Docker images (no build step required)
+- Nginx configured
+- `xr` CLI installed at `/usr/local/bin/xr`
+- `.deploy_mode` set to `api`
+- Correct file ownership (`ubuntu:ubuntu`)
+- `git safe.directory` configured
+
+**Update the AMI** after major releases by spinning up the current API instance, running `xr update`, and creating a new AMI snapshot (e.g. `recordengine-api-v4`).
+
+---
+
+## Troubleshooting
+
+**Browser hangs on skeleton screen**
+
+The `config.toml` is missing required settings. Verify:
+
+```bash
+cat /opt/xr/app/.streamlit/config.toml
+```
+
+It must contain:
+```toml
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+```
+
+**`xr update` tries to start Ollama**
+
+The `.deploy_mode` file is missing or incorrect:
+
+```bash
+cat /opt/xr/.deploy_mode   # should print: api
+echo "api" | sudo tee /opt/xr/.deploy_mode
+```
+
+**Git pull fails with permission error**
+
+```bash
+sudo chown -R ubuntu:ubuntu /opt/xr
+git config --global --add safe.directory /opt/xr
+```

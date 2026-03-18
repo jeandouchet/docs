@@ -1,0 +1,152 @@
+---
+title: "Rules Engine"
+description: "Automate document and case workflows with event-driven rules, scheduled scans, and multi-step approval chains."
+---
+
+## Overview
+
+The Rules Engine lets you define conditions and actions that fire automatically — no code required. Rules can trigger on document events, case status changes, or a recurring schedule.
+
+Navigate to **Rules Engine** in the sidebar to manage your rules.
+
+---
+
+## Trigger Types
+
+### 📥 Document Event
+
+Fires immediately after a document is processed and reaches Ready status.
+
+**Available events:**
+- `document_ready` — fires after every successful AI extraction
+
+**Use case:** Flag low-confidence documents, create cases for review, move documents to folders, notify your team.
+
+---
+
+### 📋 Case Event
+
+Fires when a case changes to a specific status.
+
+**Available events:**
+
+| Event | When it fires |
+|-------|--------------|
+| `case_resolved` | Case marked as Resolved |
+| `case_closed` | Case marked as Closed |
+| `case_ready` | Case marked as Ready |
+| `case_in_progress` | Case marked as In Progress |
+| `case_new` | New case created |
+| `case_backlog` | Case moved to Backlog |
+
+**Use case:** Auto-approve documents when their linked case is resolved. Trigger webhooks to external systems on case completion.
+
+---
+
+### ⏰ Schedule (Heartbeat)
+
+Scans all documents on a recurring timer.
+
+Configure the interval in minutes (e.g. every 60 minutes). The rule evaluates every document that matches its conditions on each scan.
+
+**Use case:** Alert on documents stalled in Needs Review for more than 3 days. Weekly compliance checks.
+
+---
+
+## Conditions
+
+Each rule supports up to 5 conditions combined with AND logic.
+
+| Field | Available Operators |
+|-------|-------------------|
+| `confidence_score` | greater than, less than, equal to |
+| `total_amount` | greater than, less than, equal to |
+| `status` | equals, contains |
+| `doc_type` | equals, contains |
+| `vendor_name` | is empty, is not empty, contains |
+| `days_in_status` | greater than (heartbeat only) |
+| Any custom field | equals, contains, is empty |
+
+---
+
+## Actions
+
+| Action | What it does |
+|--------|-------------|
+| `set_status` | Changes the document status |
+| `create_case` | Creates a new case linked to the document |
+| `move_folder` | Moves the document to a specified folder |
+| `notify` | Creates an in-app notification |
+| `webhook` | POSTs a payload to an external URL |
+| `flag_review` | Sets status to Needs Review |
+
+---
+
+## Multi-Step Approval Workflows
+
+Case-event rules enable chained automation across documents and cases.
+
+**Example: Low confidence → human review → auto-approve**
+
+```
+Rule 1 (Document Event):
+  Trigger: document_ready
+  Condition: confidence_score < 70
+  Action: create_case (priority: High)
+
+Rule 2 (Case Event):
+  Trigger: case_resolved
+  Action: set_status → Approved
+
+Rule 3 (Document Event):
+  Trigger: document_ready (status = Approved)
+  Action: webhook → QuickBooks endpoint
+```
+
+When a document extracts at 65% confidence, Rule 1 creates a High-priority case. An accountant reviews the document, resolves the case. Rule 2 fires and auto-approves the document. Rule 3 fires and exports to QuickBooks.
+
+---
+
+## Loop Protection
+
+The Rules Engine includes automatic loop detection. If a rule chain triggers itself recursively, execution stops after **5 levels of depth**.
+
+Example of a loop that would be caught:
+```
+case_resolved → set_status Approved → document event → create_case → case_resolved → ...
+```
+
+The system logs a warning and stops execution at depth 5. No infinite loops are possible.
+
+---
+
+## Default Rules
+
+Every fresh RecordEngine deployment seeds 3 default rules:
+
+| Rule | Condition | Action |
+|------|-----------|--------|
+| Low Confidence Extraction | confidence_score < 70 | create_case (High) |
+| Invoice Missing Vendor Name | doc_type contains invoice AND vendor_name is empty | create_case (Medium) |
+| Large Invoice Requires Approval | total_amount > 10000 | create_case (High) |
+
+These can be edited, disabled, or deleted from the Rules Engine page.
+
+---
+
+## Execution Log
+
+Every rule firing is recorded in the **Rule Execution Log** at the bottom of the Rules Engine page. Each entry shows:
+
+- 📥 Document event / 📋 Case event / ⏰ Heartbeat icon
+- Rule name and document/case it fired on
+- Action taken and whether it succeeded
+- Timestamp
+
+The **Automation Flow** graph in each document's detail view shows the visual chain of events for that specific document.
+
+---
+
+## API
+
+Rules can also be managed via the REST API. See [API Reference → Rules](/api-reference/rules) for full endpoint documentation.
