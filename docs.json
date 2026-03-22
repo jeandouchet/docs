@@ -60,7 +60,8 @@
               "user-guide/docs_case_management",
               "user-guide/docs_ai_providers",
               "user-guide/docs_api_mode_deployment",
-                "user-guide/docs_ai_model_comparison",
+              "user-guide/docs_ai_model_comparison",
+              "user-guide/webhooks",
               "user-guide/docs_rules_engine",
               "user-guide/settings"
             ]

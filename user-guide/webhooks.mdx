@@ -1,0 +1,335 @@
+---
+title: "Webhooks"
+description: "Push real-time event data from RecordEngine to Make.com, Google Sheets, Feishu Base, or any external system."
+---
+
+## Overview
+
+RecordEngine can send an HTTP POST request — a **webhook** — to an external URL whenever something happens inside the platform. This lets you build live integrations without polling the API.
+
+Seven independent webhook channels are available. Each has its own URL and on/off toggle, so you can connect different tools to different events.
+
+| Channel | Event | Fires when... |
+|---------|-------|--------------|
+| **Documents** | `document.exported` | A document is moved to **Export** status |
+| **Contacts** | `contact.created` | A new contact is created |
+| **Folders** | `folder.created` | A new folder is created |
+| **Cases** | `case.created` | A new case is opened |
+| **Notifications** | `notification.created` | An in-app notification is generated |
+| **Rules** | `rule.executed` | An automation rule fires (success or failure) |
+| **Audit Log** | `audit.log` | Any action is recorded in the audit trail |
+
+---
+
+## Setup
+
+1. Go to **Settings → Integrations → Webhooks**
+2. Paste your endpoint URL into the field for the channel you want
+3. Toggle the channel **on**
+4. Click **Save**
+
+Repeat for each channel you want to enable. You can use the same URL for all channels, or different URLs — for example, separate Make.com scenarios per event type.
+
+### Authentication
+
+If your endpoint requires authentication, select **Bearer Token** under **Webhook Auth** and paste your token. RecordEngine will include it as:
+
+```
+Authorization: Bearer <your-token>
+```
+
+This token applies to all channels. Leave it blank if your endpoint uses URL-based authentication (e.g. a Make.com webhook URL with a built-in key).
+
+### Offline Mode
+
+If **Offline Mode** is enabled in Settings, all webhook delivery is suspended regardless of individual channel settings. This is useful during maintenance or initial testing when you don't want live data flowing out.
+
+---
+
+## Payload Reference
+
+All webhooks share a common envelope:
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "<event_name>",
+  "timestamp": "2026-03-22T08:30:00Z",
+  ...event-specific fields...
+}
+```
+
+---
+
+### Document Webhook — `document.exported`
+
+Fires when a document is set to **Export** status. This is the richest payload — it includes all extracted fields, custom fields, line items, and a direct deep-link back to the document in RecordEngine.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "document.exported",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "document": {
+    "id": 42,
+    "doc_url": "https://yourinstance.recordengine.ai/api/document/42/view",
+    "filename": "invoice_march.pdf",
+    "status": "Export",
+    "doc_type": "Standard Supplier Invoice",
+    "vendor_name": "Acme Supplies Ltd",
+    "invoice_number": "INV-2026-0042",
+    "total_amount": 12500.00,
+    "currency": "CNY",
+    "doc_date": "2026-03-15",
+    "due_date": "2026-04-15",
+    "contact_id": 7,
+    "folder_id": 3,
+    "ai_summary": "Supplier invoice from Acme for office equipment.",
+    "notes": "",
+    "custom_fields": {
+      "PO Number": "PO-2026-099",
+      "Approved By": "Finance Manager"
+    },
+    "custom_01": "PO-2026-099",
+    "custom_02": "Finance Manager",
+    "extraction_profile": {
+      "id": 12,
+      "name": "Standard Supplier Invoice",
+      "field_count": 18
+    },
+    "external_refs": {
+      "salesforce": {
+        "record_id": "001Dn000003XyZA",
+        "record_type": "Account",
+        "record_url": "https://..."
+      }
+    }
+  },
+  "line_items": [
+    {
+      "line_number": 1,
+      "description": "Office Chair",
+      "quantity": 4,
+      "unit_price": 2500.00,
+      "amount": 10000.00,
+      "account_code": "5100",
+      "tax_rate": 13.0,
+      "tax_amount": 1300.00
+    }
+  ],
+  "line_items_count": 1,
+  "line_items_total": 10000.00
+}
+```
+
+**Key fields:**
+
+- `doc_url` — a direct deep-link that opens the document in RecordEngine. Use this as a clickable link in Feishu Base, Google Sheets, or a Slack notification.
+- `custom_fields` — a labelled dictionary of all extracted custom fields (e.g. `"PO Number": "PO-2026-099"`). Labels come from the extraction profile, then from contact-level labels, then fall back to generic keys.
+- `custom_01` through `custom_20` — the same values as flat top-level fields, for tools like Make.com and Google Sheets that can't easily parse nested JSON.
+- `line_items` — array of individual line items. Empty array `[]` if the document has no line items.
+- `external_refs` — CRM record links if this document has been correlated to Salesforce, HubSpot, Feishu, or Dynamics.
+
+<Note>
+The document webhook only fires when the document status is set to **Export** — not on upload, processing, or any other status change. This gives you precise control over what flows out. To trigger it, set a document's status to Export in the workspace, or use a Rules Engine action to do it automatically.
+</Note>
+
+---
+
+### Contact Webhook — `contact.created`
+
+Fires when a new contact (company or individual) is created in RecordEngine.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "contact.created",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "contact_id": 7,
+  "name": "Acme Supplies Ltd",
+  "contact_type": "company",
+  "email": "ap@acme.com",
+  "phone": "+86 21 5555 1234",
+  "first_name": null,
+  "last_name": null,
+  "description": "Primary office supplier",
+  "created_by": "jean",
+  "created_at": "2026-03-22T08:29:00Z"
+}
+```
+
+---
+
+### Folder Webhook — `folder.created`
+
+Fires when a new folder is created under a contact.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "folder.created",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "folder_id": 12,
+  "contact_id": 7,
+  "name": "Q1 2026 Invoices",
+  "description": "",
+  "is_root": false,
+  "created_by": "jean",
+  "created_at": "2026-03-22T08:29:00Z"
+}
+```
+
+---
+
+### Case Webhook — `case.created`
+
+Fires when a new case is opened. Includes `contact_name` for easy display without a follow-up lookup.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "case.created",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "case_id": 5,
+  "title": "Missing tax ID on fapiao batch",
+  "status": "open",
+  "priority": "high",
+  "assigned_to": "jean",
+  "contact_id": 7,
+  "contact_name": "Acme Supplies Ltd",
+  "document_id": 42,
+  "due_date": "2026-03-28",
+  "description": "Three fapiaos in the Q1 batch are missing the buyer tax ID.",
+  "created_by": "jean",
+  "created_at": "2026-03-22T08:30:00Z",
+  "updated_at": "2026-03-22T08:30:00Z"
+}
+```
+
+---
+
+### Notification Webhook — `notification.created`
+
+Fires when an in-app notification is generated — typically by a Rules Engine action or a system event.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "notification.created",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "notification_id": 88,
+  "type": "document_ready",
+  "title": "Document requires review",
+  "message": "invoice_march.pdf confidence score is below threshold.",
+  "is_read": false,
+  "document_id": 42,
+  "contact_id": 7,
+  "created_at": "2026-03-22T08:30:00Z"
+}
+```
+
+---
+
+### Rule Execution Webhook — `rule.executed`
+
+Fires every time a Rules Engine rule fires, whether it succeeded or failed. Useful for building an automation audit trail.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "rule.executed",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "rule_id": 3,
+  "rule_name": "Auto-approve low-value invoices",
+  "trigger_type": "event",
+  "action_type": "set_status",
+  "action_taken": "Set status to Approved",
+  "condition_matched": "total_amount < 1000",
+  "success": true,
+  "error_message": null,
+  "document_id": 42,
+  "document_filename": "invoice_march.pdf"
+}
+```
+
+- `trigger_type` — `event` (fires on a document status change) or `heartbeat` (fires on a schedule)
+- `success` — `true` if the action completed without error; `false` if it failed (check `error_message`)
+
+---
+
+### Audit Log Webhook — `audit.log`
+
+Fires for every action recorded in the audit trail — document uploads, status changes, logins, settings changes, and more. Useful for compliance logging in a SIEM or external audit system.
+
+```json
+{
+  "schema_version": "2.0",
+  "event": "audit.log",
+  "timestamp": "2026-03-22T08:30:00Z",
+  "audit_id": 1024,
+  "action": "document_status_changed",
+  "entity_type": "document",
+  "entity_id": 42,
+  "user": "jean",
+  "details": "Status changed from Approved to Export",
+  "ip_address": "192.168.1.10",
+  "logged_at": "2026-03-22T08:30:00Z"
+}
+```
+
+<Warning>
+The audit log webhook can fire frequently — every user action generates an entry. If you're routing this to a paid external service, monitor volume before enabling it in production.
+</Warning>
+
+---
+
+## Connecting to Make.com
+
+The most common integration pattern is RecordEngine → Make.com → downstream app (Google Sheets, Feishu Base, Slack, etc.).
+
+1. In Make.com, create a new scenario and add a **Webhooks → Custom webhook** trigger module
+2. Copy the generated webhook URL
+3. Paste it into the corresponding channel URL in RecordEngine Settings
+4. Enable the channel and save
+5. Trigger a test event in RecordEngine (e.g. set a document to Export)
+6. Make.com will receive the payload and auto-detect the data structure
+7. Add downstream modules as needed
+
+For the **Document** channel, the `doc_url` field makes a particularly useful column in Feishu Base or Google Sheets — it gives reviewers a one-click link directly to the document without leaving their workflow tool.
+
+---
+
+## Retry Behavior
+
+RecordEngine attempts delivery once with a 30-second timeout. If the endpoint returns HTTP 200, 201, or 204, delivery is considered successful. Any other response code, or a network timeout, is treated as a failure.
+
+For document webhooks, a failed delivery means the document will **not** be marked as synced (`synced_at` stays null) and the sync loop will retry it on the next 10-second cycle.
+
+For all other webhook types (contacts, folders, cases, etc.), there is no automatic retry — the event fires once at the moment it occurs. If delivery fails, the event is lost. For critical integrations, consider logging all incoming webhooks on the receiving end.
+
+---
+
+## Troubleshooting
+
+**Webhook not arriving**
+
+- Check that the URL is saved correctly in Settings and the channel toggle is on
+- Verify **Offline Mode** is not enabled (Settings → General)
+- For document webhooks: confirm the document is actually in **Export** status, not Approved
+- Test your endpoint independently with a tool like [webhook.site](https://webhook.site) to confirm it's reachable
+
+**HTTP 4xx errors**
+
+- 401 — your endpoint requires authentication; add a Bearer token in Settings
+- 403 — the token is incorrect or the IP is blocked
+- 404 — the URL path is wrong; regenerate the webhook URL in your receiving tool
+
+**HTTP 5xx errors**
+
+- The receiving server is temporarily down or overloaded; RecordEngine will retry document webhooks automatically
+
+**Payload arrives but data looks wrong**
+
+- Check `schema_version` — all current payloads are `2.0`
+- For `custom_fields`, labels come from the extraction profile assigned to the document. If a document was processed without a profile, labels fall back to generic keys (`custom_01`, `custom_02`, etc.)
+- The flat `custom_01`–`custom_20` fields are always present alongside `custom_fields` — use whichever is easier for your tool to map
