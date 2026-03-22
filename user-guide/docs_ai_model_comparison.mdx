@@ -1,0 +1,144 @@
+---
+title: "AI Model Comparison"
+description: "Compare local and cloud AI models available in RecordEngine — speed, accuracy, cost, and best use cases."
+---
+
+## Overview
+
+RecordEngine supports five AI providers across two deployment modes. The right choice depends on your priorities: **data sovereignty**, **throughput**, **cost**, or **accuracy on complex documents**.
+
+| | Local (GPU) | Cloud API (BYOK) |
+|-|-------------|-----------------|
+| Data leaves your server | ❌ Never | ✅ Sent to provider |
+| Monthly AI cost | $0 (GPU hardware only) | Pay-per-use (your key) |
+| Setup required | GPU instance or workstation | API key in Settings |
+| Works offline | ✅ Yes | ❌ No |
+| Best for | PIPL / DSL / CSL compliance | Speed and scale |
+
+---
+
+## Local Models (Ollama — GPU Required)
+
+These models run entirely inside your RecordEngine server. No data ever leaves your network.
+
+| Model | Size | Speed | Accuracy | Vision | Best For |
+|-------|------|-------|----------|--------|----------|
+| **qwen3.5:9b** ⭐ | 9B | ★★★★★ | ★★★★☆ | ✅ Yes | Default — all tasks including scanned documents |
+| **qwen3.5:27b** | 27B | ★★★☆☆ | ★★★★★ | ❌ No | Complex contracts, long-form text analysis |
+| **qwen2.5vl:7b** | 7B | ★★★★★ | ★★★☆☆ | ✅ Yes | Legacy — retained for compatibility |
+| **qwen2.5:14b** | 14B | ★★★★☆ | ★★★★☆ | ❌ No | Legacy — retained for compatibility |
+
+### Notes on Local Models
+
+**qwen3.5:9b is the recommended default.** It is natively multimodal — it handles scanned PDFs, images, and text in a single pass. Despite being the smallest active model, it outperforms the larger qwen2.5:14b on Chinese document extraction due to its architecture.
+
+**qwen3.5:27b is text-only in Ollama.** Do not assign it as your Vision Model — sending images to it causes a processing error. Use it only for Precise Mode on text-heavy documents such as contracts and payroll slips.
+
+**VRAM requirements on a single A10G (24 GB):**
+
+| Model | VRAM Used | VRAM Remaining |
+|-------|-----------|---------------|
+| qwen3.5:9b | ~6.6 GB | ~17 GB free |
+| qwen3.5:27b | ~17 GB | ~7 GB free |
+| qwen2.5vl:7b | ~6.0 GB | ~18 GB free |
+| qwen2.5:14b | ~9.0 GB | ~15 GB free |
+
+---
+
+## Cloud API Models (BYOK — Bring Your Own Key)
+
+These models run on the provider's infrastructure. Your documents are sent over the internet for processing. Suitable for API-mode deployments where PIPL/DSL sovereignty is not required.
+
+| Provider | Model | Speed | Accuracy | Vision | Chinese Docs | Est. Cost / 1K pages |
+|----------|-------|-------|----------|--------|-------------|----------------------|
+| **OpenAI** | gpt-4o | ★★★★★ | ★★★★★ | ✅ Yes | ★★★★☆ | ~$5–15 |
+| **Gemini** | gemini-2.5-flash | ★★★★★ | ★★★★☆ | ✅ Yes | ★★★★☆ | ~$1–4 |
+| **Claude** | claude-sonnet-4-5 | ★★★★☆ | ★★★★★ | ✅ Yes | ★★★★★ | ~$8–20 |
+| **Qwen API** | qwen-max | ★★★★☆ | ★★★★★ | ✅ Yes | ★★★★★ | ~$3–10 |
+
+> **Cost estimates** are approximate and based on typical RecordEngine extraction payloads (mixed text + image). Actual costs vary by document complexity and provider pricing changes. Always monitor usage in your provider dashboard.
+
+### Notes on Cloud Models
+
+**OpenAI (gpt-4o)** is the default provider on all GPU servers. It offers the best balance of speed, accuracy, and reliability. Recommended as a starting point for new API-mode deployments.
+
+**Gemini (gemini-2.5-flash)** offers the lowest cost per page of any cloud provider and is a strong choice for high-volume deployments where budget is a priority. Use model `gemini-2.5-flash-preview-04-17` in Settings — earlier preview versions may return errors.
+
+**Claude (claude-sonnet-4-5)** excels at nuanced multilingual documents, particularly mixed Chinese–English contracts, legal filings, and anything requiring careful reasoning about context. Slowest of the four but highest accuracy on edge cases.
+
+**Qwen API (qwen-max)** is optimized for Chinese-origin documents — fapiaos, business licenses, bank statements, and payroll slips. If your document mix is predominantly Chinese, this is the highest-accuracy option at a competitive price point.
+
+---
+
+## Head-to-Head: Extraction Accuracy by Document Type
+
+Ratings are based on internal testing across 500+ documents per type. ★★★★★ = near-perfect field extraction with high confidence scores; ★★★☆☆ = acceptable but requires more manual review.
+
+| Document Type | qwen3.5:9b (Local) | gpt-4o | gemini-2.5-flash | claude-sonnet | qwen-max |
+|--------------|-------------------|--------|-----------------|---------------|----------|
+| Chinese Fapiao (发票) | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ |
+| VAT Special Invoice (增值税专用发票) | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★★★ |
+| Standard Supplier Invoice | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ |
+| English Contract / Agreement | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★☆☆ |
+| Chinese Contract (服务合同) | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★★ |
+| Payroll Slip (含个税) | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★★★ |
+| Scanned / Low-quality PDF | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ |
+| Bank Statement (multi-page) | ★★★☆☆ | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★★☆ |
+| Medical Invoice (门诊发票) | ★★★☆☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ |
+| WeChat / Alipay Screenshot | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ |
+
+---
+
+## Choosing the Right Model
+
+### You need full data sovereignty (PIPL / DSL / CSL)
+→ **Local GPU deployment with qwen3.5:9b**. No data leaves your server under any circumstances.
+
+### You want the best accuracy on Chinese documents
+→ **Qwen API (qwen-max)** for cloud, or **qwen3.5:9b** locally. Both are trained natively on Chinese financial and legal document formats.
+
+### You want the best accuracy on complex English documents
+→ **Claude (claude-sonnet-4-5)**. Particularly strong on contracts, multi-party agreements, and documents requiring inference.
+
+### You want the lowest cost at scale
+→ **Gemini (gemini-2.5-flash)**. Best cost-per-page of all cloud options with good general accuracy.
+
+### You want the fastest processing
+→ **OpenAI (gpt-4o)** for cloud, or **qwen3.5:9b** locally. Both return results quickly and handle concurrent requests well.
+
+### You have a mixed document batch (invoices + contracts + receipts)
+→ Enable **Auto Profile Detection** in Settings. RecordEngine will select the best extraction profile per document automatically, regardless of which AI provider you use.
+
+---
+
+## Switching Providers
+
+You can change your active AI provider at any time without restarting the server.
+
+1. Go to **Settings → AI Backend**
+2. Select your preferred provider
+3. Enter your API key (for cloud providers)
+4. Click **Save**
+
+Changes take effect immediately for all new documents. Documents already in the processing queue will complete with the previous provider.
+
+<Note>
+Switching providers does not delete your other API keys. Each provider's key is stored independently — you can switch back at any time without re-entering credentials.
+</Note>
+
+---
+
+## Provider Data & Privacy Policies
+
+RecordEngine does not transmit any data to AI providers when running in Local mode. When using a cloud API provider, your document content is sent to that provider's inference infrastructure subject to their terms of service.
+
+| Provider | Data retention policy | Region options | Enterprise DPA |
+|----------|--------------------|----------------|----------------|
+| OpenAI | 0 days (API, with Zero Data Retention agreement) | US (default) | ✅ Available |
+| Google (Gemini) | 0 days (API) | US, EU | ✅ Available |
+| Anthropic (Claude) | 0 days (API) | US | ✅ Available |
+| Alibaba (Qwen API) | Review DashScope terms | CN / INT | Contact Alibaba Cloud |
+
+<Warning>
+If your organization is subject to China's Personal Information Protection Law (PIPL), Data Security Law (DSL), or Cybersecurity Law (CSL), consult your legal team before routing documents through any cloud AI provider. The only fully compliant option under these frameworks is **Local (GPU) mode**.
+</Warning>
