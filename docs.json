@@ -101,7 +101,7 @@
               "integrations/salesforce",
               "integrations/hubspot",
               "integrations/microsoft-dynamics",
-                "lark-feishu-integration",
+              "integrations/lark-feishu-integration",
               "integrations/quickbooks",
               "integrations/xero",
               "integrations/wecom",
