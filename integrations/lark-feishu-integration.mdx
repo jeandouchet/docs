@@ -1,0 +1,198 @@
+---
+title: "Lark / Feishu Integration"
+description: "Automatically ingest documents into RecordEngine by dropping files into a Lark or Feishu group chat."
+---
+
+## Overview
+
+RecordEngine can receive documents directly from a **Lark** (international) or **Feishu** (China domestic) group chat. When a user drops a PDF or image into the designated intake group, RecordEngine automatically downloads it, runs AI extraction, and files it under the configured contact and folder — no manual upload required.
+
+| | Detail |
+|-|--------|
+| Supported file types | PDF, images (JPG, PNG, etc.) |
+| Platforms | Lark (open.larksuite.com) and Feishu (open.feishu.cn) |
+| Trigger | File or image message sent to the intake group |
+| Processing | Auto-profile detection → AI extraction → outbound webhook |
+| Configuration | Settings → General → 🐦 Lark / Feishu Integration |
+
+---
+
+## Prerequisites
+
+- A RecordEngine instance with a public HTTPS URL
+- **Server URL** configured in Settings → General → 🔗 Server URL
+- A Lark or Feishu developer account at [open.larksuite.com](https://open.larksuite.com) or [open.feishu.cn](https://open.feishu.cn)
+- At least one Contact and Folder already created in RecordEngine
+
+---
+
+## How It Works
+
+```
+User drops file in Lark/Feishu group
+        ↓
+Lark/Feishu POSTs event to RecordEngine
+        ↓
+RecordEngine responds 200 OK immediately
+        ↓  (background)
+RecordEngine downloads file from Lark/Feishu API
+        ↓
+File saved + document record created in RecordEngine
+        ↓
+xr-watcher picks up → auto-profile detection → AI extraction
+        ↓
+Outbound webhook fires → Make.com → Google Sheets / notifications
+```
+
+RecordEngine responds to Lark/Feishu instantly and processes the file in the background. This prevents Lark/Feishu's 3-second timeout from triggering a retry and creating duplicate documents.
+
+---
+
+## Step 1 — Create a Lark / Feishu App
+
+1. Go to your developer console:
+   - **Lark:** [open.larksuite.com/app](https://open.larksuite.com/app)
+   - **Feishu:** [open.feishu.cn/app](https://open.feishu.cn/app)
+2. Click **Create App** → **Custom App**
+3. Give it a name (e.g. `RecordEngine Intake`) and save
+4. Go to **Credentials & Basic Info** and note your:
+   - **App ID** — looks like `cli_xxxxxxxxxxxxxxxx`
+   - **App Secret**
+
+---
+
+## Step 2 — Grant App Permissions
+
+In your app's developer console, go to **Permissions & Scopes** and enable:
+
+| Permission | Purpose |
+|------------|---------|
+| `im:message` | Read messages sent to the app |
+| `im:message.receive_v1` | Receive message events |
+| `im:resource` | Download file and image attachments |
+
+Save and publish a new app version after adding permissions.
+
+---
+
+## Step 3 — Configure the Webhook URL
+
+1. In your developer console, go to **Events & Callbacks → Event Configuration**
+2. Enable events and set the **Request URL** to:
+
+```
+https://yourinstance.recordengine.ai/api/lark/webhook
+```
+
+<Note>
+Your exact webhook URL is shown in RecordEngine under **Settings → General → 🐦 Lark / Feishu Integration → Webhook URL**. Copy it directly from there.
+</Note>
+
+3. Subscribe to the event: `im.message.receive_v1`
+4. Save. Lark/Feishu will send a challenge request to verify your URL — RecordEngine handles this automatically.
+
+---
+
+## Step 4 — Configure RecordEngine Settings
+
+In RecordEngine, go to **Settings → General** and scroll to **🐦 Lark / Feishu Integration**.
+
+| Field | Description |
+|-------|-------------|
+| **Platform** | Select **Lark (International)** or **Feishu (China)** |
+| **App ID** | Paste your App ID from Step 1 |
+| **App Secret** | Paste your App Secret from Step 1 |
+| **Intake Contact** | Documents will be filed under this contact |
+| **Intake Folder** | Documents will be placed in this folder |
+| **Intake Profile** | AI extraction profile applied to incoming documents |
+| **Webhook URL** | Read-only — copy this into your developer console |
+
+Click **💾 Save Lark Settings** when done.
+
+<Tip>
+Choose a dedicated contact and folder for Lark intake (e.g. a contact named "Lark Intake" with a folder named "Inbox"). This keeps incoming documents organised and easy to review before filing them elsewhere.
+</Tip>
+
+---
+
+## Step 5 — Add RecordEngine Bot to Your Intake Group
+
+1. In Lark/Feishu, open the group you want to use as the intake channel
+2. Go to group **Settings → Bots → Add Bot**
+3. Search for your app name (e.g. `RecordEngine Intake`) and add it
+
+From this point on, any **file or image** sent to this group will be picked up by RecordEngine. Text messages are silently ignored.
+
+---
+
+## Step 6 — Publish Your App
+
+In the developer console, go to **App Release → Version Management** and publish your app. RecordEngine will not receive events until the app is in **Published** status.
+
+---
+
+## Testing the Integration
+
+1. Send a PDF or image to your intake group in Lark/Feishu
+2. Within a few seconds, the document should appear in RecordEngine under the configured contact and folder with status **Processing**
+3. Once AI extraction completes, status changes to **Ready** (or **Needs Review** depending on confidence score)
+
+If you have an outbound webhook configured, a notification will also be sent to your downstream system (e.g. Google Sheets, Lark Base).
+
+---
+
+## Lark vs Feishu
+
+Lark and Feishu are the same platform — Lark is the international version, Feishu is the China domestic version. The only difference is the API base URL:
+
+| Platform | API Base URL |
+|----------|-------------|
+| Lark (International) | `https://open.larksuite.com` |
+| Feishu (China) | `https://open.feishu.cn` |
+
+All API paths are identical. RecordEngine switches automatically based on your **Platform** setting.
+
+---
+
+## Supported Message Types
+
+| Message type | Handled |
+|-------------|---------|
+| File (PDF, Word, Excel, etc.) | ✅ Yes |
+| Image (JPG, PNG, etc.) | ✅ Yes |
+| Text message | ⏭️ Ignored |
+| Audio / Video | ⏭️ Ignored |
+
+---
+
+## Troubleshooting
+
+**Document not appearing in RecordEngine after sending a file**
+
+- Confirm your app is **Published** (not in Draft) in the developer console
+- Confirm the **Request URL** in Events & Callbacks matches your RecordEngine webhook URL exactly, including `https://`
+- Confirm **App ID** and **App Secret** are saved correctly in RecordEngine Settings
+- Check that the RecordEngine bot has been added to the intake group
+
+**Webhook URL verification failed in Lark/Feishu developer console**
+
+- Confirm your RecordEngine instance is publicly accessible over HTTPS
+- Confirm the **Server URL** is set in **Settings → General → 🔗 Server URL**
+- The challenge verification is handled automatically — no additional configuration is needed
+
+**Documents arriving twice**
+
+- Check whether any Make.com scenario is also forwarding Lark events to RecordEngine. If so, deactivate it — RecordEngine handles the full intake flow internally without Make.com involvement.
+
+**File downloaded but extraction profile is wrong**
+
+- Go to **Settings → General → 🐦 Lark / Feishu Integration** and update the **Intake Profile**
+- For mixed document types, consider using the **Universal Invoices and Receipts** profile, or enable auto-profile detection
+
+---
+
+## Related
+
+- [API-Mode Deployment](/docs/api-mode-deployment)
+- [Extraction Profiles](/docs/extraction-profiles)
+- [Outbound Webhooks](/docs/webhooks)
